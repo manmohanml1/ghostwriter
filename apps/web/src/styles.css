@@ -2,55 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg-primary: #090d16;
-  --bg-surface: #111827;
-  --bg-surface-hover: #1e293b;
-  --border-subtle: #1f293d;
-  --border-focus: #6366f1;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --accent-ghostwriter: #eab308;
-  --accent-agent: #8b5cf6;
-  --accent-human: #06b6d4;
-  --accent-pruned: #ef4444;
+@layer base {
+  :root {
+    --bg-primary: #070a12;
+    --bg-surface: #0f172a;
+    --bg-elevated: #1e293b;
+    --border-subtle: #334155;
+    --border-strong: #475569;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent-primary: #a855f7;
+    --accent-canon: #eab308;
+    --accent-agent: #c084fc;
+    --accent-author: #6366f1;
+    --danger: #ef4444;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-}
-
-code, pre {
-  font-family: 'JetBrains Mono', monospace;
-}
-
-/* Custom scrollbars */
+/* Custom modern scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  background: rgba(15, 23, 42, 0.6);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-subtle);
+  background: #334155;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: #475569;
 }
