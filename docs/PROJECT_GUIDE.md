@@ -1,32 +1,85 @@
 # Ghostwriter Project Guide
 
-This is the canonical index for the product and engineering decisions established for **Ghostwriter** — the AI Co-Writing Studio with Interactive Branching Narratives.
-
-## Source Precedence
-
-When two sources disagree, use this order:
-
-1. Accepted architecture decision records in `docs/adr/`
-2. Security and product invariants in `docs/ARCHITECTURE.md` and `docs/PROJECT_GUIDE.md`
-3. The active milestone contract in `docs/milestones/`
-4. Current implementation and automated tests
-5. Chat history and issue records
-
-If implementation contradicts a higher-priority record, either correct the implementation or write an ADR that deliberately changes the decision. Do not silently drift.
+This is the canonical index for the product, engineering, and governance rules established for **Ghostwriter** — the AI Co-Writing Studio with Interactive Branching Narratives.
 
 ---
 
-## Product Invariants & Principles
+## 1. Source Precedence
 
-1. **Deterministic Foundations Before AI Augmentation**: The core story graph DAG traversal, serialization, branch switching, and local persistence work 100% offline without AI. AI generates continuations and hypotheses, but the deterministic state machine enforces schema invariants.
-2. **Visual Narrative Tree as First-Class Canvas**: Every branch point, alternate timeline, and character decision is rendered as an interactive, navigable graph tree.
-3. **Resilience to Provider Outages & Cold Starts**: External API limits (e.g., Gemini rate limits, Render/Neon spin-up delays) are modeled as visible, recoverable application states, never unhandled crashes.
-4. **Permanent Zero-Cost Operation**: The base system is engineered strictly to run within **$0/month** free-tier boundaries (Vercel + Render/Cloud Run + Neon/Supabase + Gemini Flash).
-5. **Local-First Safety**: All active edits are committed to browser `IndexedDB` before dispatching remote network sync events.
+When two sources disagree, use this strict order of authority:
+
+1. **Accepted Architecture Decision Records** in `docs/adr/`
+2. **Product Invariants & Governance Rules** in `docs/PROJECT_GUIDE.md` and `docs/DEPLOYMENT.md`
+3. **Active Milestone Acceptance Contracts** in `docs/milestones/`
+4. **Current Implementation and Automated Verification Tests**
+5. **Chat History and Discussion Transcripts**
+
+*If implementation contradicts a higher-priority record, either correct the code or draft an ADR that deliberately records the evolution. Do not silently drift.*
 
 ---
 
-## Stable Scope Decisions
+## 2. Product Principles & Invariants
+
+1. **Deterministic Foundations Before AI Augmentation**: The visual DAG engine, graph layout, branch switching, and local persistence work with 100% fidelity offline without AI. AI personas generate continuations and hypotheses, but the deterministic state machine enforces schema validity.
+2. **Visual Narrative Tree as First-Class Canvas**: Every branch point, alternate timeline, and character decision is rendered as an interactive, navigable graph tree with pan, zoom, and bezier spline routing.
+3. **Resilience to Provider Outages & Rate Limits**: External API limits (e.g., Gemini rate limits, Groq quotas) are modeled as visible, recoverable application states with cascading failover, never unhandled crashes.
+4. **Permanent Zero-Cost Budget Invariant**: The base system is engineered strictly to run within **$0.00/month** free-tier boundaries (Vercel Hobby + Supabase Free + Client BYOK AI).
+5. **Local-First Safety & Data Sovereignty**: All active edits are committed to browser `IndexedDB` before dispatching remote network sync events.
+
+---
+
+## 3. Reference Model vs. Beyond Baseline Philosophy
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                   REFERENCE MODEL & BEYOND BASELINE                         │
+├──────────────────────────┬────────────────────────────┬─────────────────────┤
+│ Reference Source         │ What We Adopt (Baseline)   │ How Ghostwriter     │
+│                          │                            │ Surpasses It        │
+├──────────────────────────┼────────────────────────────┼─────────────────────┤
+│ **CommitQuest**          │ • Strict PR & Release Flow │ • Adds Interactive  │
+│                          │ • Zero-Cost Hosting Model  │   Infinite SVG DAG  │
+│                          │ • ADR Documentation Suite  │ • Tri-Provider AI   │
+│                          │ • Gated Cloud Persistence  │   Auto-Failover     │
+├──────────────────────────┼────────────────────────────┼─────────────────────┤
+│ **E-Reader & Webnovel    │ • Sepia/OLED/Dark Themes   │ • Non-linear branch │
+│ Platforms**              │ • Fluid typography scaling │   choice navigation │
+│                          │ • Table of Contents drawer │ • 1,500w AI expander│
+└──────────────────────────┴────────────────────────────┴─────────────────────┘
+```
+
+- **Reference Model, Not Rigid Ceiling**: We reference `commitquest` and open-source e-reader engines as engineering benchmarks for governance, deployment discipline, and reader ergonomics.
+- **Continuous Superiority**: Ghostwriter is built to improve upon and surpass reference models by introducing unique, high-value capabilities (e.g. mathematical branch trees, multi-scene novel prose expansion, and character Lore Bibles).
+
+---
+
+## 4. Non-Negotiable Branching & Release Rules
+
+> [!CAUTION]
+> **RULE: ZERO DIRECT COMMITS TO MASTER**
+> **Never commit or push directly to the `master` / `main` branch under any circumstances.**
+
+Every modification—whether feature, bugfix, documentation, or configuration—must adhere to this lifecycle:
+
+```text
+1. Create Topic Branch: `git checkout -b codex/<feature-name>`
+   │
+2. Build & Test: Ensure `npm run build` succeeds with exit code 0
+   │
+3. Push Branch: `git push -u origin codex/<feature-name>`
+   │
+4. Open Pull Request: Fill out `.github/pull_request_template.md` checklist
+   │
+5. Automated CI Verification: GitHub Actions workflow passes cleanly
+   │
+6. Merge via PR: `gh pr merge <PR-ID> --merge --delete-branch`
+   │
+7. Owner-Gated Release: Tag and publish GitHub Release ONLY upon owner instruction
+```
+
+---
+
+## 5. Stable Scope Decisions
 
 - Graph topology is strictly a Directed Acyclic Graph (DAG); cycle formation is prohibited by domain validation.
 - Node contents support standard GitHub-flavored Markdown.
