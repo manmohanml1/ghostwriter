@@ -53,29 +53,33 @@ When two sources disagree, use this strict order of authority:
 
 ---
 
-## 4. Non-Negotiable Branching & Release Rules
+## 4. Non-Negotiable Branching, PR & Merge Rules
 
+### A. Zero Direct Commits to Master
 > [!CAUTION]
-> **RULE: ZERO DIRECT COMMITS TO MASTER**
-> **Never commit or push directly to the `master` / `main` branch under any circumstances.**
+> **Never commit or push directly to the `master` / `main` branch under any circumstances.** All work must originate on an isolated topic branch.
 
-Every modification—whether feature, bugfix, documentation, or configuration—must adhere to this lifecycle:
+### B. Standard Branch Naming Taxonomy
+Branches must strictly use one of the following standard semantic prefixes (never arbitrary prefixes like `codex/...`):
 
-```text
-1. Create Topic Branch: `git checkout -b codex/<feature-name>`
-   │
-2. Build & Test: Ensure `npm run build` succeeds with exit code 0
-   │
-3. Push Branch: `git push -u origin codex/<feature-name>`
-   │
-4. Open Pull Request: Fill out `.github/pull_request_template.md` checklist
-   │
-5. Automated CI Verification: GitHub Actions workflow passes cleanly
-   │
-6. Merge via PR: `gh pr merge <PR-ID> --merge --delete-branch`
-   │
-7. Owner-Gated Release: Tag and publish GitHub Release ONLY upon owner instruction
-```
+| Prefix | Purpose | Example |
+|---|---|---|
+| `feat/` | New features or product capabilities | `feat/public-story-showcase`, `feat/epub-export` |
+| `fix/` | Bug fixes and visual/layout corrections | `fix/modal-clipping`, `fix/token-refresh` |
+| `docs/` | Documentation, ADRs, and governance rules | `docs/merge-approval-rules`, `docs/adr-0005` |
+| `refactor/` | Code refactoring without behavioral change | `refactor/tree-canvas-svg`, `refactor/store-signals` |
+| `chore/` | Dependency upgrades, CI/CD, or build scripts | `chore/upgrade-angular`, `chore/ci-pipeline` |
+
+### C. Explicit Owner-Gated Merge Rule
+> [!IMPORTANT]
+> **NEVER MERGE ANY PULL REQUEST INTO `MASTER` WITHOUT EXPLICIT OWNER INSTRUCTION.**
+> 
+> The development lifecycle:
+> 1. Create and push topic branch: `git checkout -b <prefix>/<name>`
+> 2. Implement changes and run `npm run build` verification
+> 3. Open Pull Request with completed `.github/pull_request_template.md`
+> 4. Present the PR link and verification evidence to the repository owner
+> 5. **STOP AND WAIT**: Merge the PR *only* after the owner explicitly says `"merge"` or approves the PR.
 
 ---
 

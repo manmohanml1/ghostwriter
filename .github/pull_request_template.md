@@ -13,7 +13,9 @@
 
 ## 🛡️ Non-Negotiable Quality & Governance Checklist
 
-- [ ] **Zero Direct Commits to Master**: This change was developed on an isolated feature branch (`codex/...` or `feat/...`).
+- [ ] **Standard Branch Naming**: Branch uses a standard prefix (`feat/`, `fix/`, `docs/`, `refactor/`, `chore/` — never `codex/...`).
+- [ ] **Zero Direct Commits to Master**: All commits isolated to this feature branch.
+- [ ] **Explicit Owner Approval Gate**: This PR will NOT be merged until the owner explicitly instructs `"merge"`.
 - [ ] **Deterministic & Offline Invariant**: Studio canvas, reader mode, and local storage operate with 100% fidelity without mandatory cloud connectivity.
 - [ ] **Zero-Cost Constraint Preserved**: No paid cloud infrastructure introduced; stays strictly within $0/month free-tier boundaries.
 - [ ] **Production Build Verified**: `npm run build` executed and passed with exit code `0`.
