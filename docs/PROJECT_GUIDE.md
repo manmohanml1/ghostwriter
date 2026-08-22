@@ -9,7 +9,7 @@ This is the canonical index for the product, engineering, and governance rules e
 When two sources disagree, use this strict order of authority:
 
 1. **Accepted Architecture Decision Records** in `docs/adr/`
-2. **Product Invariants & Governance Rules** in `docs/PROJECT_GUIDE.md` and `docs/DEPLOYMENT.md`
+2. **Product Invariants & Governance Rules** in `docs/PROJECT_GUIDE.md`, `docs/DEPLOYMENT.md`, and `docs/VERSIONING.md`
 3. **Active Milestone Acceptance Contracts** in `docs/milestones/`
 4. **Current Implementation and Automated Verification Tests**
 5. **Chat History and Discussion Transcripts**
