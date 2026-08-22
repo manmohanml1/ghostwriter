@@ -1,11 +1,14 @@
 # ✍️ Ghostwriter — AI Co-Writing Studio & Branching Webnovel Engine
 
+[![Production Deployment](https://img.shields.io/badge/Vercel-Production%20Live-success.svg)](https://web-green-beta-4giz07ncu3.vercel.app)
 [![CI Build](https://github.com/manmohanml1/ghostwriter/actions/workflows/ci.yml/badge.svg)](https://github.com/manmohanml1/ghostwriter/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
 [![Angular 19](https://img.shields.io/badge/Angular-19.0-dd0031.svg)](https://angular.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org)
 
 > **Ghostwriter** is an open-source, local-first AI co-writing studio designed for novelists, webnovel authors, and interactive fiction creators. It combines an **infinite SVG decision-tree canvas**, **deep 1,500+ word chapter expansion**, a **character & world Lore Bible**, and a **bulletproof tri-provider failover engine** (Gemini 2.5 Flash $\rightarrow$ Groq Llama 3.3 70B $\rightarrow$ Smart Offline Engine).
+
+🌐 **Live Cloud App**: [**https://web-green-beta-4giz07ncu3.vercel.app**](https://web-green-beta-4giz07ncu3.vercel.app)
 
 ---
 
@@ -56,11 +59,10 @@
 
 ## 🚀 Quickstart
 
-### Prerequisites
-- [Node.js](https://nodejs.org) >= 20.x
-- [npm](https://npmjs.com) >= 10.x
+### Live Cloud Version
+Launch the studio immediately in your browser: [**https://web-green-beta-4giz07ncu3.vercel.app**](https://web-green-beta-4giz07ncu3.vercel.app)
 
-### Installation
+### Local Development
 
 ```bash
 # Clone the repository
@@ -74,7 +76,7 @@ npm install
 npm start
 ```
 
-Open **`http://localhost:4200`** in your browser to launch the studio!
+Open **`http://localhost:4200`** to run the local workspace.
 
 ---
 
@@ -86,27 +88,15 @@ ghostwriter/
 │   └── ci.yml
 ├── apps/
 │   └── web/                   # Angular 19 Standalone Single Page App
+│       ├── vercel.json        # Production Vercel SPA routing & security headers
 │       ├── src/app/core/      # Reactive TreeStore, AIGeneratorService, Fixtures
 │       └── src/app/features/  # Canvas, Inspector, Reader, Lore Bible, Style Controls
 ├── packages/
 │   └── contracts/             # Domain TypeScript interfaces (TreeNode, StoryTree, LoreEntity)
 ├── infrastructure/            # Supabase PostgreSQL schema & local Docker configuration
 │   └── supabase/schema.sql
-└── docs/                      # Architecture, Cost Models, and Milestone contracts
+└── docs/                      # Architecture, Cost Models, DEPLOYMENT, and ADR records
 ```
-
----
-
-## 🗺️ Roadmap to v1.0
-
-- [x] **v0.1.0**: Monorepo scaffold, contracts, DAG engine, SVG canvas, inspector.
-- [x] **v0.2.0**: AI 3-way hypothesis generator, interactive reader mode, Lore Bible, style controls.
-- [x] **v0.3.0**: Deep 1,500w webnovel chapter expansion, e-reader themes, manuscript export suite.
-- [x] **v0.4.0**: Tri-provider rate limit defense (Gemini + Groq + Offline), live AI health telemetry.
-- [x] **v0.5.0**: GitHub remote integration, CI/CD Actions, and Supabase cloud sync schema.
-- [ ] **v0.6.0**: 1-Click public story showcase links (`/story/:slug`) for readers.
-- [ ] **v0.7.0**: Community story gallery & reader bookmarks.
-- [ ] **v1.0.0**: Production deployment on Vercel + Supabase ($0 free tier + Pro Writer tier).
 
 ---
 
