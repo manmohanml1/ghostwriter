@@ -250,7 +250,7 @@ export class AIGeneratorService {
     loreBible: LoreEntity[],
     styleConfig?: StoryStyleConfig
   ): Promise<{ title: string; content: string; wordCount: number }> {
-    const prompt = `You are a webnovel author expanding a scene into a full chapter (1,200 - 2,000 words).
+    const prompt = `You are a published webnovel author expanding a chapter outline into full, immersive novel prose (1,200 - 2,000 words).
 Genre: ${styleConfig?.genre || 'Cyberpunk'}
 Beat: ${options.focusBeat}
 
@@ -258,8 +258,13 @@ Outline:
 Title: ${currentChapter.title}
 Text: ${currentChapter.content}
 
+CRITICAL RULES:
+- Write continuous, flowing book prose with dialogue, character emotions, and atmosphere.
+- DO NOT output headers like "Scene 1", "Scene 2", or "### Scene".
+- Use natural paragraph breaks and subtle scene transitions.
+
 Return ONLY valid JSON matching:
-{"title": "${currentChapter.title}", "content": "Full multi-scene prose"}`;
+{"title": "${currentChapter.title}", "content": "Full continuous novel prose"}`;
 
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -334,7 +339,7 @@ Return ONLY valid JSON matching:
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages: [
-          { role: 'system', content: 'Continue the story smoothly with the next 2-3 narrative paragraphs. Return only prose.' },
+          { role: 'system', content: 'Continue the story smoothly with the next 2-3 narrative paragraphs. Return only prose with no scene labels.' },
           { role: 'user', content: currentChapter.content }
         ]
       })
@@ -372,17 +377,16 @@ Current chapter outline / seed text:
 Title: ${currentChapter.title}
 Text: ${currentChapter.content}
 
-TASK: Expand this scene into a full, deep, immersive webnovel chapter (1,200 to 2,000 words).
-Structure the chapter into multiple sequential scenes separated by double newlines:
-- Scene 1: Rich environmental atmosphere, sensory worldbuilding, character mood.
-- Scene 2: Realistic, sharp character dialogue and psychological stakes.
-- Scene 3: Escalating tension, physical action, or unexpected investigation clue.
-- Scene 4: A gripping chapter climax and page-turning cliffhanger ending.
+TASK: Expand this into a full, deep, immersive webnovel chapter (1,200 to 2,000 words).
+CRITICAL FORMATTING INSTRUCTION:
+- Write continuous, natural novel prose with dialogue, character emotions, and environmental tension.
+- DO NOT insert markdown headers like "Scene I", "Scene II", "### Scene", or any scene labels.
+- Transition between moments naturally using paragraph breaks.
 
 Return strictly as JSON with this schema:
 {
   "title": "${currentChapter.title}",
-  "content": "Full multi-scene prose in Markdown format."
+  "content": "Full continuous novel prose in Markdown without scene headers."
 }`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
@@ -417,7 +421,7 @@ Return strictly as JSON with this schema:
   ): Promise<string> {
     const prompt = `You are a creative co-writer continuing a story.
 Read the story so far and write the immediate next sequential paragraph (2-3 sentences of vivid action, dialogue, or atmosphere).
-Do not repeat what was already written. Continue the flow naturally.
+Do not repeat what was already written. Do NOT write scene headers. Continue the flow naturally.
 
 Story so far:
 ${currentChapter.content}
@@ -516,37 +520,36 @@ Return your response strictly as valid JSON matching this schema:
     loreBible: LoreEntity[],
     styleConfig?: StoryStyleConfig
   ): { title: string; content: string; wordCount: number } {
-    const charName = loreBible.find(e => e.category === 'CHARACTER')?.name || 'Kael';
+    const charName = loreBible.find(e => e.category === 'CHARACTER')?.name || 'Detective Kael Vance';
 
-    const expanded = `${chapter.content}
+    let focusProse = '';
+    if (options.focusBeat === 'ACTION_CONFRONTATION') {
+      focusProse = `Gunfire erupted without warning, shredding the ventilation ducts above. ${charName} dropped into a combat slide across the wet concrete, drawing his sidearm in one fluid motion. Tracer rounds lit the subterranean darkness like strobe lights, forcing him behind the reinforced chassis of an industrial turbine. He counted three enforcers advancing in bounding overwatch. With only one thermal magazine remaining, he waited for the synchronized pause in their burst fire before leaning out to take his shot.`;
+    } else if (options.focusBeat === 'CHARACTER_DIALOGUE') {
+      focusProse = `"You were never meant to access that encrypted archive," a raspy voice called out from the gantry shadows.
 
-### Scene II: The Shadowed Approach
+${charName} didn't lower his weapon. "Forty years ago, Dr. Chen signed this transmission with a clearance code that only three living people possess. Who authorized the blackout order on his research team?"
 
-The neon reflections warped across rain-slicked asphalt as ${charName} navigated the lower tier. Every shadow in the underpass seemed to stretch with hostile intent. The district's ambient hum—a discordant choir of malfunctioning transformers and distant mag-trains—did nothing to drown out the sound of his own accelerated heartbeat.
+A bitter laugh echoed through the damp underpass. "You think this was about research? It was a containment protocol, Detective. And by waking up that terminal, you just reopened the quarantine."`;
+    } else if (options.focusBeat === 'INVESTIGATION_LORE') {
+      focusProse = `${charName} plugged his diagnostic probe directly into the terminal's copper bus. The decrypted registers cascaded across his optical HUD in streams of amber hexadecimals. The broadcast wasn't coming from an external relay—it was looping from a deep subterranean mainframe sealed inside the foundation bedrock itself. Whoever engineered the pulse had designed it as an autonomous dead man's switch, programmed to trigger only when the city's power grid reached critical vulnerability.`;
+    } else if (options.focusBeat === 'CLIFFHANGER_CLIMAX') {
+      focusProse = `A sudden power surge hummed through the concrete floorboards. Across the room, the primary terminal's cooling fans screamed to a halt as every monitor flashed crimson. The signal didn't just decrypt—it transmitted a localized biometric handshake directly into ${charName}'s neural port. His vision went white with static as a synthesized voice whispered inside his auditory cortex: "Protocol acknowledged. Welcome back, Architect."`;
+    } else {
+      // Balanced Multi-Paragraph Prose
+      focusProse = `The neon reflections warped across rain-slicked asphalt as ${charName} navigated deeper into the underpass. Every shadow in the lower tier seemed to stretch with hostile intent. The district's ambient hum—a discordant choir of malfunctioning transformers and distant mag-trains—did nothing to drown out the sound of his own accelerated breathing.
 
-He paused beside a shuttered kiosk, pretending to adjust the collar of his trench coat while scanning the alleyway through his thermal HUD. Three heat signatures were stationed sixty meters ahead, concealed behind an armored disposal unit. They weren't scavengers. Their stance was disciplined, weapons held in low-ready configuration.
+He paused beside a shuttered kiosk, pretending to adjust the collar of his trench coat while scanning the perimeter through his thermal HUD. Three heat signatures were stationed sixty meters ahead, concealed behind an armored disposal unit. They weren't scavengers; their stance was disciplined, weapons held in low-ready configuration.
 
-"Apex tactical units," ${charName} muttered to himself, checking the kinetic charge in his magazine. "They arrived too fast. Someone in precinct dispatch sold the transmission coordinates before my terminal finished printing the log."
+Rather than waiting for the ambush to spring, ${charName} broke left into a narrow drainage corridor. The air here was freezing, choked with industrial coolant fumes.
 
-### Scene III: The Confrontation
+A sudden deafening shockwave shattered the silence. The subterranean power substation forty yards away detonated in a fountain of blue electric sparks, plunging the entire sector into absolute darkness—save for the glowing amber glyphs burning across ${charName}'s forearm implant.`;
+    }
 
-Rather than waiting for the ambush to spring, ${charName} broke left into a narrow drainage corridor. The air here was freezing, choked with industrial coolant fumes that burned his lungs with every breath.
-
-A boot clicked against steel.
-
-"Detective Vance," a voice rang out from the darkness above. A figure stepped onto the catwalk, illuminated by the crimson beacon of an emergency relay. "You should have deleted the waveform and taken your pension. Some protocols were buried for the city's survival."
-
-${charName} leveled his sidearm without hesitation. "Dr. Chen designed the protocol forty years ago to prevent a blackout cascade. Who authorized the execution order on his team?"
-
-The operative didn't answer. Instead, the red targeting laser from his carbine centered directly on ${charName}'s chest.
-
-### Scene IV: The Cliffhanger
-
-A deafening shockwave shattered the silence. The subterranean power substation forty yards away detonated in a fountain of blue electric sparks. The grid died instantly, plunging the entire sector into absolute darkness—save for the glowing amber glyphs burning across ${charName}'s forearm implant.
-
-The transmission wasn't just a message. It was an activation key. And it had just found its host.`;
-
+    const cleanBaseContent = chapter.content.replace(/### Scene [I|V|X]+: [^\n]+/g, '').trim();
+    const expanded = `${cleanBaseContent}\n\n${focusProse}`;
     const wordCount = expanded.trim().split(/\s+/).length;
+
     return {
       title: chapter.title,
       content: expanded,
@@ -559,7 +562,7 @@ The transmission wasn't just a message. It was an activation key. And it had jus
     loreBible: LoreEntity[],
     styleConfig?: StoryStyleConfig
   ): string {
-    const charName = loreBible.find(e => e.category === 'CHARACTER')?.name || 'Kael';
+    const charName = loreBible.find(e => e.category === 'CHARACTER')?.name || 'Detective Kael Vance';
 
     const narrativeProgressionBeats = [
       `\n\n${charName} knelt beside the shattered terminal, brushing away shards of tempered glass. The backup cooling fans spun down with a dying whine, leaving only the sound of distant sirens echoing from the transit bridge above. He drew a deep breath, knowing that every minute spent lingering in this sector increased the likelihood of a corporate strike team intercept.`,
@@ -583,7 +586,7 @@ The transmission wasn't just a message. It was an activation key. And it had jus
     loreBible: LoreEntity[],
     styleConfig?: StoryStyleConfig
   ): AIBranchSuggestion[] {
-    const charName = loreBible.find(e => e.category === 'CHARACTER')?.name || 'Kael';
+    const charName = loreBible.find(e => e.category === 'CHARACTER')?.name || 'Detective Kael Vance';
     const c = this.branchCounter++;
 
     const dynamicTemplates = [
