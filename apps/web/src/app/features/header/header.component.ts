@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TreeStore } from '../../core/state/tree.store';
 import { AIGeneratorService } from '../../core/services/ai-generator.service';
+import { SupabaseService } from '../../core/services/supabase.service';
 import { StyleControlsComponent } from '../style-controls/style-controls.component';
 
 @Component({
@@ -17,7 +18,7 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
         <div>
           <div class="flex items-center gap-2">
             <h1 class="brand-title">Ghostwriter</h1>
-            <span class="version-badge">v0.4.0</span>
+            <span class="version-badge">v0.5.0</span>
           </div>
           <p class="brand-subtitle">{{ store.currentTree().title }}</p>
         </div>
@@ -45,8 +46,24 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
         <app-style-controls />
       </div>
 
-      <!-- Right: AI Status, Export Suite & Settings -->
+      <!-- Right: AI Status, Cloud Account & Export Suite -->
       <div class="header-actions">
+        <!-- Cloud Sync & User Account Pill -->
+        <button 
+          class="btn-cloud-account" 
+          [class.authenticated]="supabase.isAuthenticated()"
+          (click)="openAuthEvent.emit()"
+          title="Account & Cloud Sync"
+        >
+          @if (supabase.isAuthenticated()) {
+            <span class="cloud-dot online"></span>
+            <span class="user-label">{{ supabase.currentUser()?.email?.split('@')?.[0] }}</span>
+          } @else {
+            <span class="cloud-dot offline"></span>
+            <span class="user-label">☁️ Cloud Sync</span>
+          }
+        </button>
+
         <!-- Live AI Health Status Pill -->
         <div 
           class="ai-status-pill"
@@ -220,6 +237,40 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
       position: relative;
     }
 
+    .btn-cloud-account {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-cloud-account:hover {
+      background: #334155;
+    }
+
+    .btn-cloud-account.authenticated {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.4);
+      color: #c7d2fe;
+    }
+
+    .cloud-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    .cloud-dot.online { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+    .cloud-dot.offline { background: #94a3b8; }
+
     .ai-status-pill {
       display: flex;
       align-items: center;
@@ -348,7 +399,10 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
 export class HeaderComponent {
   readonly store = inject(TreeStore);
   readonly aiService = inject(AIGeneratorService);
+  readonly supabase = inject(SupabaseService);
+
   readonly openSettingsEvent = output<void>();
+  readonly openAuthEvent = output<void>();
 
   readonly showExportMenu = signal<boolean>(false);
 

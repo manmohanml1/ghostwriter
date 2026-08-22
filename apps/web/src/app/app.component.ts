@@ -5,17 +5,30 @@ import { HeaderComponent } from './features/header/header.component';
 import { TreeCanvasComponent } from './features/canvas/tree-canvas.component';
 import { NodeInspectorComponent } from './features/inspector/node-inspector.component';
 import { StoryReaderComponent } from './features/reader/story-reader.component';
+import { AuthModalComponent } from './features/auth/auth-modal.component';
 import { TreeStore } from './core/state/tree.store';
 import { AIGeneratorService } from './core/services/ai-generator.service';
+import { SupabaseService } from './core/services/supabase.service';
 import { AIProviderType } from './core/models/graph.models';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, HeaderComponent, TreeCanvasComponent, NodeInspectorComponent, StoryReaderComponent],
+  imports: [
+    CommonModule, 
+    FormsModule, 
+    HeaderComponent, 
+    TreeCanvasComponent, 
+    NodeInspectorComponent, 
+    StoryReaderComponent,
+    AuthModalComponent
+  ],
   template: `
     <div class="app-layout">
-      <app-header (openSettingsEvent)="openSettingsModal()" />
+      <app-header 
+        (openSettingsEvent)="openSettingsModal()" 
+        (openAuthEvent)="showAuthModal.set(true)"
+      />
 
       <main class="main-workspace">
         @if (store.activeViewMode() === 'CANVAS') {
@@ -26,7 +39,12 @@ import { AIProviderType } from './core/models/graph.models';
         }
       </main>
 
-      <!-- GLOBAL MODAL (Placed at root so position:fixed is never trapped by backdrop-filter) -->
+      <!-- AUTH / CLOUD SYNC MODAL -->
+      @if (showAuthModal()) {
+        <app-auth-modal (closeModal)="showAuthModal.set(false)" />
+      }
+
+      <!-- GLOBAL AI SETTINGS MODAL -->
       @if (showSettingsModal()) {
         <div class="global-modal-backdrop" (click)="showSettingsModal.set(false)">
           <div class="global-modal-box" (click)="$event.stopPropagation()">
@@ -135,12 +153,7 @@ import { AIProviderType } from './core/models/graph.models';
     /* GLOBAL MODAL BACKDROP */
     .global-modal-backdrop {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      width: 100vw;
-      height: 100vh;
+      inset: 0;
       background: rgba(0, 0, 0, 0.82);
       backdrop-filter: blur(10px);
       display: flex;
@@ -331,8 +344,10 @@ import { AIProviderType } from './core/models/graph.models';
 export class AppComponent {
   readonly store = inject(TreeStore);
   readonly aiService = inject(AIGeneratorService);
+  readonly supabase = inject(SupabaseService);
 
   readonly showSettingsModal = signal<boolean>(false);
+  readonly showAuthModal = signal<boolean>(false);
 
   geminiKeyInput = '';
   groqKeyInput = '';
