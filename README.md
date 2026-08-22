@@ -20,7 +20,7 @@
            ┌────────────────────────────┼────────────────────────────┐
            ▼                            ▼                            ▼
 ┌──────────────────────┐    ┌──────────────────────┐    ┌──────────────────────┐
-│  ✨ Branching AI     │    │  📖 LNReader Mode    │    │  📜 Lore Bible &     │
+│  ✨ Branching AI     │    │  📖 E-Reader Mode    │    │  📜 Lore Bible &     │
 │  3-Way Hypotheses    │    │  4 Themes (OLED/Sep) │    │  Style Controls      │
 │  (Action/Twist/Lore) │    │  + TOC Drawer        │    │  (Consistency Hub)   │
 └──────────────────────┘    └──────────────────────┘    └──────────────────────┘
@@ -43,8 +43,8 @@
 - **Zero API Lockouts**: If Gemini returns an HTTP 429 rate limit or daily token cap, Ghostwriter automatically and silently fails over to **Groq (Llama 3.3 70B @ 300 tokens/s)**, and falls back to the **Dynamic Offline Engine**.
 - **BYOK Storage**: Store your own Google AI Studio and Groq keys strictly in local browser `localStorage`.
 
-### 4. 📖 LNReader-Style Webnovel Reader
-- Toggle from canvas editing directly into an immersive e-reader experience.
+### 4. 📖 Immersive Webnovel E-Reader
+- Toggle from canvas editing directly into an immersive reading experience.
 - 4 Reading Themes: **🌑 Dark Slate**, **🖤 OLED Black**, **📜 Warm Sepia**, and **📄 Novel Paper**.
 - Slide-out Table of Contents drawer and Choose-Your-Own-Adventure branch choices.
 
@@ -101,7 +101,7 @@ ghostwriter/
 
 - [x] **v0.1.0**: Monorepo scaffold, contracts, DAG engine, SVG canvas, inspector.
 - [x] **v0.2.0**: AI 3-way hypothesis generator, interactive reader mode, Lore Bible, style controls.
-- [x] **v0.3.0**: Deep 1,500w webnovel chapter expansion, LNReader themes, manuscript export suite.
+- [x] **v0.3.0**: Deep 1,500w webnovel chapter expansion, e-reader themes, manuscript export suite.
 - [x] **v0.4.0**: Tri-provider rate limit defense (Gemini + Groq + Offline), live AI health telemetry.
 - [x] **v0.5.0**: GitHub remote integration, CI/CD Actions, and Supabase cloud sync schema.
 - [ ] **v0.6.0**: 1-Click public story showcase links (`/story/:slug`) for readers.

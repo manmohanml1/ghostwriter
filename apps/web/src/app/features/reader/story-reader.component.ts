@@ -9,7 +9,7 @@ import { ReaderTheme } from '../../core/models/graph.models';
   imports: [CommonModule],
   template: `
     <div class="reader-viewport" [attr.data-theme]="store.readerTheme()">
-      <!-- Top LNReader-Style Header -->
+      <!-- Top Webnovel E-Reader Header -->
       <header class="reader-header">
         <div class="header-left">
           <button class="btn-back" (click)="store.setViewMode('CANVAS')" title="Return to Story Graph">
