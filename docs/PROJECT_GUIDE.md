@@ -40,7 +40,7 @@ When two sources disagree, use this strict order of authority:
 │ **CommitQuest**          │ • Strict PR & Release Flow │ • Adds Interactive  │
 │                          │ • Zero-Cost Hosting Model  │   Infinite SVG DAG  │
 │                          │ • ADR Documentation Suite  │ • Tri-Provider AI   │
-│                          │ • Gated Cloud Persistence  │   Auto-Failover     │
+│                          │ • 4-Environment Isolation  │   Auto-Failover     │
 ├──────────────────────────┼────────────────────────────┼─────────────────────┤
 │ **E-Reader & Webnovel    │ • Sepia/OLED/Dark Themes   │ • Non-linear branch │
 │ Platforms**              │ • Fluid typography scaling │   choice navigation │
@@ -53,33 +53,40 @@ When two sources disagree, use this strict order of authority:
 
 ---
 
-## 4. Non-Negotiable Branching, PR & Merge Rules
+## 4. Non-Negotiable Branching, Deployment & Release Rules
 
 ### A. Zero Direct Commits to Master
 > [!CAUTION]
 > **Never commit or push directly to the `master` / `main` branch under any circumstances.** All work must originate on an isolated topic branch.
 
 ### B. Standard Branch Naming Taxonomy
-Branches must strictly use one of the following standard semantic prefixes (never arbitrary prefixes like `codex/...`):
+Branches must strictly use one of the following standard semantic prefixes:
 
 | Prefix | Purpose | Example |
 |---|---|---|
 | `feat/` | New features or product capabilities | `feat/public-story-showcase`, `feat/epub-export` |
 | `fix/` | Bug fixes and visual/layout corrections | `fix/modal-clipping`, `fix/token-refresh` |
-| `docs/` | Documentation, ADRs, and governance rules | `docs/merge-approval-rules`, `docs/adr-0005` |
-| `refactor/` | Code refactoring without behavioral change | `refactor/tree-canvas-svg`, `refactor/store-signals` |
-| `chore/` | Dependency upgrades, CI/CD, or build scripts | `chore/upgrade-angular`, `chore/ci-pipeline` |
+| `docs/` | Documentation, ADRs, and governance rules | `docs/enforce-post-merge-deploy-rule` |
+| `refactor/` | Code refactoring without behavioral change | `refactor/tree-canvas-svg` |
+| `chore/` | Dependency upgrades, CI/CD, or build scripts | `chore/upgrade-angular` |
 
-### C. Explicit Owner-Gated Merge Rule
+### C. Zero Pre-Merge Production Deployments
+> [!CAUTION]
+> **NEVER DEPLOY TO VERCEL PRODUCTION BEFORE A PR IS APPROVED AND MERGED TO `MASTER`.**
+> 
+> - **Pre-Merge Testing**: Occurs strictly in `dev` (local), `test` (CI), or `stage` (immutable Vercel Preview deployments generated on the PR).
+> - **Production Deployment**: Occurs strictly on `master` **after** the PR has been reviewed, approved, and merged.
+
+### D. Explicit Owner-Gated Merge & Release Rule
 > [!IMPORTANT]
-> **NEVER MERGE ANY PULL REQUEST INTO `MASTER` WITHOUT EXPLICIT OWNER INSTRUCTION.**
+> **NEVER MERGE ANY PULL REQUEST OR TAG RELEASES WITHOUT EXPLICIT OWNER INSTRUCTION.**
 > 
 > The development lifecycle:
 > 1. Create and push topic branch: `git checkout -b <prefix>/<name>`
 > 2. Implement changes and run `npm run build` verification
 > 3. Open Pull Request with completed `.github/pull_request_template.md`
-> 4. Present the PR link and verification evidence to the repository owner
-> 5. **STOP AND WAIT**: Merge the PR *only* after the owner explicitly says `"merge"` or approves the PR.
+> 4. Present the PR link, Vercel Preview URL, and verification evidence to the repository owner
+> 5. **STOP AND WAIT**: Merge the PR and deploy to production *only* after the owner explicitly says `"merge"`.
 
 ---
 

@@ -7,7 +7,6 @@ This document records the exact 4-environment matrix, hosting topology, verified
 ## 1. Verified Live Deployments
 
 - **Production Web Application**: [https://web-green-beta-4giz07ncu3.vercel.app](https://web-green-beta-4giz07ncu3.vercel.app)
-- **Immutable Deployment URL**: `https://web-3nz846d9f-manmohanlonawat-8572s-projects.vercel.app`
 - **Vercel Project Dashboard**: `https://vercel.com/manmohanlonawat-8572s-projects/web`
 - **Hosting Region**: Washington, D.C., USA (`iad1`)
 - **Deployment Status**: `READY / 200 OK` (Edge CDN active)
@@ -40,29 +39,32 @@ Ghostwriter is engineered to operate permanently at **$0.00/month** total cost.
 
 ---
 
-## 4. Promotion & Release Contract
+## 4. Strict Promotion & Release Contract
 
 ```text
-Pull Request Opened on GitHub
-  │
-  ▼
-Automated GitHub Actions Quality & CI Check (.github/workflows/quality.yml)
-  │ • Conventional Commit title verification
-  │ • TypeScript contracts build & Angular production build
-  │ • Upload immutable artifact: `ghostwriter-web-${{ github.sha }}`
-  ▼
-Vercel Staging Deployment (Immutable Preview URL)
-  │ • Manual smoke QA of Canvas, AI Failover & E-Reader
-  ▼
-Pull Request Merged into `master` (Explicit Owner Approval Required)
-  │
-  ▼
-Production Vercel Deployment (Promote Artifact to Live Edge)
-  │
-  ▼
-Explicit Annotated Git Tag & GitHub Release (vMAJOR.MINOR.PATCH)
+1. Pull Request Opened on Feature Branch (`feat/...`, `fix/...`, `docs/...`)
+   │
+   ▼
+2. Automated GitHub Actions CI Check (.github/workflows/quality.yml)
+   │ • Conventional Commit PR title verification
+   │ • TypeScript contracts build & Angular production build
+   │ • Upload immutable artifact: `ghostwriter-web-${{ github.sha }}`
+   ▼
+3. Vercel Staging Deployment (Immutable Preview URL Generated on PR)
+   │ • Manual smoke QA of Canvas, AI Failover & E-Reader on Preview URL
+   ▼
+4. STOP & AWAIT OWNER REVIEW: NEVER DEPLOY TO PRODUCTION PRE-MERGE
+   │
+   ▼
+5. Pull Request Merged into `master` (Explicit Owner Approval Required)
+   │
+   ▼
+6. Production Vercel Deployment (Promote Artifact to Canonical Production Domain)
+   │ • Verify live production URL: https://web-green-beta-4giz07ncu3.vercel.app
+   ▼
+7. Explicit Annotated Git Tag & GitHub Release (vMAJOR.MINOR.PATCH)
 ```
 
-> [!IMPORTANT]
-> **Owner-Gated Release Gate**:
-> A merged pull request or staging deployment does **not** automatically create an official release. An annotated Git tag (`vX.Y.Z`) and GitHub Release are published only after explicit verification of the live production artifact and owner authorization.
+> [!CAUTION]
+> **Zero Pre-Merge Production Deployments**:
+> Production deployment commands (`npx vercel --prod`) are strictly forbidden on unmerged feature branches. Production promotion happens strictly on `master` following merge approval.

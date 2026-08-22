@@ -15,6 +15,7 @@
 
 - [ ] **Standard Branch Naming**: Branch uses a standard prefix (`feat/`, `fix/`, `docs/`, `refactor/`, `chore/` — never `codex/...`).
 - [ ] **Zero Direct Commits to Master**: All commits isolated to this feature branch.
+- [ ] **Zero Pre-Merge Prod Deployments**: Verified strictly in `dev`, `test`, or `stage` (Preview). No `vercel --prod` executed before merge.
 - [ ] **Explicit Owner Approval Gate**: This PR will NOT be merged until the owner explicitly instructs `"merge"`.
 - [ ] **Deterministic & Offline Invariant**: Studio canvas, reader mode, and local storage operate with 100% fidelity without mandatory cloud connectivity.
 - [ ] **Zero-Cost Constraint Preserved**: No paid cloud infrastructure introduced; stays strictly within $0/month free-tier boundaries.
