@@ -1,0 +1,40 @@
+name: Ghostwriter Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  package-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Web Application
+        run: npm --workspace=web run build
+
+      - name: Create Release Archive
+        run: |
+          cd apps/web/dist/web/browser
+          zip -r ../../../../ghostwriter-web-bundle.zip .
+          cd ../../../..
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ghostwriter-web-bundle.zip
+          generate_release_notes: true

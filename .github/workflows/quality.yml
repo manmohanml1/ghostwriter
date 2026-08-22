@@ -1,0 +1,66 @@
+name: Ghostwriter Quality & CI
+
+on:
+  pull_request:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pull-request-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate Conventional Commit title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|refactor|perf|test|build|ci|chore|revert)(\(.+\))?!?:[[:space:]].+ ]]; then
+            echo "Error: PR title must follow Conventional Commits (e.g. 'feat: add public showcase links' or 'fix(auth): resolve modal clipping')."
+            exit 1
+          fi
+
+  verify-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Contracts Package
+        run: npm --workspace=@ghostwriter/contracts run build --if-present
+
+      - name: Production Build Web Application
+        run: npm --workspace=web run build
+
+      - name: Verify Build Artifacts
+        run: |
+          test -d apps/web/dist/web/browser || (echo "Production browser bundle missing!" && exit 1)
+          echo "Production Angular build verified successfully!"
+
+      - name: Upload Immutable Web Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghostwriter-web-${{ github.sha }}
+          path: |
+            apps/web/dist/web/browser
+            apps/web/dist/web/3rdpartylicenses.txt
+          if-no-files-found: error
+          retention-days: 14
