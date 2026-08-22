@@ -1,15 +1,22 @@
 import { Injectable, signal } from '@angular/core';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
-import { StoryTree } from '../models/graph.models';
+import { StoryTree, TreeNode, TreeEdge, LoreEntity } from '../models/graph.models';
+import { environment } from '../../../environments/environment';
 
 const SUPABASE_URL_STORAGE = 'ghostwriter_supabase_url';
 const SUPABASE_KEY_STORAGE = 'ghostwriter_supabase_anon_key';
-const MOCK_USER_STORAGE = 'ghostwriter_user_session';
 
-const DEFAULT_SUPABASE_URL = 'https://ghostwriter-demo.supabase.co';
-const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_anon_key_for_offline_first';
+export type CloudSyncStatus = 'LOCAL_SANDBOX' | 'SYNCING' | 'SYNCED_CLOUD' | 'SYNC_ERROR' | 'UNAUTHENTICATED';
 
-export type CloudSyncStatus = 'LOCAL_OFFLINE' | 'SYNCING' | 'SYNCED_CLOUD' | 'SYNC_ERROR';
+export interface CloudStorySummary {
+  id: string;
+  title: string;
+  description: string;
+  genre: string;
+  updatedAt: string;
+  isPublic: boolean;
+  nodeCount?: number;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -19,32 +26,45 @@ export class SupabaseService {
 
   readonly currentUser = signal<User | null>(null);
   readonly isAuthenticated = signal<boolean>(false);
-  readonly syncStatus = signal<CloudSyncStatus>('LOCAL_OFFLINE');
+  readonly isCloudConfigured = signal<boolean>(false);
+  readonly syncStatus = signal<CloudSyncStatus>('LOCAL_SANDBOX');
   readonly lastSyncTime = signal<string | null>(null);
-  readonly userCloudStories = signal<Array<{ id: string; title: string; updatedAt: string; isPublic: boolean }>>([]);
+  readonly userCloudStories = signal<CloudStorySummary[]>([]);
+  readonly syncErrorMessage = signal<string | null>(null);
 
   constructor() {
     this.initClient();
-    this.restoreSession();
-  }
-
-  isCustomBackendConfigured(): boolean {
-    const url = this.getSupabaseUrl();
-    return Boolean(url && url !== DEFAULT_SUPABASE_URL && url.includes('supabase.co'));
   }
 
   getSupabaseUrl(): string {
     if (typeof window !== 'undefined' && window.localStorage) {
-      return window.localStorage.getItem(SUPABASE_URL_STORAGE) || DEFAULT_SUPABASE_URL;
+      const stored = window.localStorage.getItem(SUPABASE_URL_STORAGE);
+      if (stored && stored.trim()) return stored.trim();
     }
-    return DEFAULT_SUPABASE_URL;
+    return environment.supabase.url || '';
   }
 
   getSupabaseKey(): string {
     if (typeof window !== 'undefined' && window.localStorage) {
-      return window.localStorage.getItem(SUPABASE_KEY_STORAGE) || DEFAULT_SUPABASE_KEY;
+      const stored = window.localStorage.getItem(SUPABASE_KEY_STORAGE);
+      if (stored && stored.trim()) return stored.trim();
     }
-    return DEFAULT_SUPABASE_KEY;
+    return environment.supabase.anonKey || '';
+  }
+
+  hasValidCloudConfig(): boolean {
+    const url = this.getSupabaseUrl();
+    const key = this.getSupabaseKey();
+    return Boolean(
+      url &&
+      key &&
+      url.startsWith('https://') &&
+      url.includes('.supabase.co') &&
+      !url.includes('demo') &&
+      !url.includes('example') &&
+      key.length > 20 &&
+      !key.includes('dummy')
+    );
   }
 
   setCustomConfig(url: string, key: string): void {
@@ -55,223 +75,393 @@ export class SupabaseService {
     }
   }
 
-  private initClient(): void {
-    const url = this.getSupabaseUrl();
-    const key = this.getSupabaseKey();
-
-    if (this.isCustomBackendConfigured()) {
-      try {
-        this.client = createClient(url, key, {
-          auth: {
-            persistSession: true,
-            autoRefreshToken: true
-          }
-        });
-
-        this.client.auth.getSession().then(({ data }) => {
-          if (data.session?.user) {
-            this.currentUser.set(data.session.user);
-            this.isAuthenticated.set(true);
-            this.syncStatus.set('SYNCED_CLOUD');
-            this.fetchUserStories();
-          }
-        }).catch(() => {});
-
-        this.client.auth.onAuthStateChange((_event, session) => {
-          if (session?.user) {
-            this.currentUser.set(session.user);
-            this.isAuthenticated.set(true);
-            this.syncStatus.set('SYNCED_CLOUD');
-            this.fetchUserStories();
-          } else {
-            this.restoreSession();
-          }
-        });
-      } catch (err) {
-        console.warn('Supabase custom client init failed:', err);
-      }
+  clearCustomConfig(): void {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(SUPABASE_URL_STORAGE);
+      window.localStorage.removeItem(SUPABASE_KEY_STORAGE);
+      this.initClient();
     }
   }
 
-  private restoreSession(): void {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const saved = window.localStorage.getItem(MOCK_USER_STORAGE);
-      if (saved) {
-        try {
-          const user = JSON.parse(saved);
-          this.currentUser.set(user);
+  private initClient(): void {
+    const isConfigured = this.hasValidCloudConfig();
+    this.isCloudConfigured.set(isConfigured);
+
+    if (!isConfigured) {
+      this.client = null;
+      this.currentUser.set(null);
+      this.isAuthenticated.set(false);
+      this.syncStatus.set('LOCAL_SANDBOX');
+      return;
+    }
+
+    try {
+      const url = this.getSupabaseUrl();
+      const key = this.getSupabaseKey();
+
+      this.client = createClient(url, key, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
+      });
+
+      // Check current session
+      this.client.auth.getSession().then(({ data, error }) => {
+        if (error) {
+          console.warn('Supabase getSession error:', error.message);
+          this.syncStatus.set('UNAUTHENTICATED');
+          return;
+        }
+        if (data.session?.user) {
+          this.currentUser.set(data.session.user);
           this.isAuthenticated.set(true);
           this.syncStatus.set('SYNCED_CLOUD');
-          this.lastSyncTime.set(new Date().toLocaleTimeString());
-        } catch {
-          // Ignore
+          this.fetchUserStories();
+        } else {
+          this.syncStatus.set('UNAUTHENTICATED');
         }
-      }
+      }).catch(() => {
+        this.syncStatus.set('LOCAL_SANDBOX');
+      });
+
+      // Listen for auth state changes
+      this.client.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          this.currentUser.set(session.user);
+          this.isAuthenticated.set(true);
+          this.syncStatus.set('SYNCED_CLOUD');
+          this.fetchUserStories();
+        } else {
+          this.currentUser.set(null);
+          this.isAuthenticated.set(false);
+          this.syncStatus.set('UNAUTHENTICATED');
+          this.userCloudStories.set([]);
+        }
+      });
+    } catch (err: any) {
+      console.warn('Failed to initialize Supabase client:', err);
+      this.client = null;
+      this.syncStatus.set('LOCAL_SANDBOX');
     }
   }
 
   /**
-   * Email / Password Sign Up
+   * Real Email / Password Sign Up
    */
   async signUp(email: string, pass: string): Promise<{ success: boolean; message: string }> {
-    if (this.isCustomBackendConfigured() && this.client) {
-      try {
-        const { data, error } = await this.client.auth.signUp({ email, password: pass });
-        if (error) throw error;
-        if (data.user) {
-          this.currentUser.set(data.user);
-          this.isAuthenticated.set(true);
-          return { success: true, message: 'Account created! Welcome to Ghostwriter Cloud.' };
-        }
-        return { success: true, message: 'Confirmation email dispatched. Check your inbox!' };
-      } catch (err: any) {
-        return { success: false, message: err.message || 'Signup failed' };
-      }
+    if (!this.client || !this.isCloudConfigured()) {
+      return {
+        success: false,
+        message: 'Cloud Database not configured. Please set your Supabase Project URL and Anon Key in Settings.'
+      };
     }
 
-    // Instant local/demo sign up
-    this.simulateLocalUser(email);
-    return { success: true, message: `Account created for ${email}!` };
+    try {
+      const { data, error } = await this.client.auth.signUp({
+        email: email.trim(),
+        password: pass
+      });
+
+      if (error) throw error;
+
+      if (data.user && data.session) {
+        this.currentUser.set(data.user);
+        this.isAuthenticated.set(true);
+        this.syncStatus.set('SYNCED_CLOUD');
+        return { success: true, message: 'Account created! Connected to Ghostwriter Cloud.' };
+      }
+
+      return {
+        success: true,
+        message: 'Account created! Please check your email for the confirmation link.'
+      };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Signup failed' };
+    }
   }
 
   /**
-   * Email / Password Sign In
+   * Real Email / Password Sign In
    */
   async signIn(email: string, pass: string): Promise<{ success: boolean; message: string }> {
-    if (this.isCustomBackendConfigured() && this.client) {
-      try {
-        const { data, error } = await this.client.auth.signInWithPassword({ email, password: pass });
-        if (error) throw error;
-        if (data.user) {
-          this.currentUser.set(data.user);
-          this.isAuthenticated.set(true);
-          this.syncStatus.set('SYNCED_CLOUD');
-          return { success: true, message: 'Logged in successfully!' };
-        }
-        return { success: false, message: 'Invalid credentials' };
-      } catch (err: any) {
-        return { success: false, message: err.message || 'Login failed' };
-      }
+    if (!this.client || !this.isCloudConfigured()) {
+      return {
+        success: false,
+        message: 'Cloud Database not configured. Please set your Supabase Project URL and Anon Key in Settings.'
+      };
     }
 
-    // Instant local/demo sign in
-    this.simulateLocalUser(email);
-    return { success: true, message: `Signed in as ${email}!` };
+    try {
+      const { data, error } = await this.client.auth.signInWithPassword({
+        email: email.trim(),
+        password: pass
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        this.currentUser.set(data.user);
+        this.isAuthenticated.set(true);
+        this.syncStatus.set('SYNCED_CLOUD');
+        await this.fetchUserStories();
+        return { success: true, message: 'Logged in successfully!' };
+      }
+
+      return { success: false, message: 'Unable to authenticate with provided credentials.' };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Login failed' };
+    }
   }
 
   /**
-   * Sign In With Google / GitHub OAuth
+   * Real OAuth Sign In (Google / GitHub)
    */
   async signInWithOAuth(provider: 'google' | 'github'): Promise<{ success: boolean; message: string }> {
-    if (this.isCustomBackendConfigured() && this.client) {
-      try {
-        const { error } = await this.client.auth.signInWithOAuth({
-          provider,
-          options: { redirectTo: window.location.origin }
-        });
-        if (error) throw error;
-        return { success: true, message: `Redirecting to ${provider}...` };
-      } catch (err: any) {
-        console.warn(`OAuth redirect failed; falling back to instant session:`, err);
-      }
+    if (!this.client || !this.isCloudConfigured()) {
+      return {
+        success: false,
+        message: 'Cloud Database not configured. Please connect a Supabase project first.'
+      };
     }
 
-    // Instant seamless sign-in without external redirect error
-    const email = provider === 'google' ? 'author.creative@gmail.com' : 'author_dev@github.com';
-    this.simulateLocalUser(email);
-    return { success: true, message: `Connected with ${provider === 'google' ? 'Google' : 'GitHub'} (${email})` };
+    try {
+      const { error } = await this.client.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
+        }
+      });
+
+      if (error) throw error;
+      return { success: true, message: `Redirecting to ${provider}...` };
+    } catch (err: any) {
+      return { success: false, message: err.message || `OAuth sign-in failed` };
+    }
   }
 
   /**
-   * Sign Out
+   * Real Sign Out
    */
   async signOut(): Promise<void> {
-    if (this.client && this.isCustomBackendConfigured()) {
+    if (this.client) {
       await this.client.auth.signOut().catch(() => {});
     }
     this.currentUser.set(null);
     this.isAuthenticated.set(false);
-    this.syncStatus.set('LOCAL_OFFLINE');
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.removeItem(MOCK_USER_STORAGE);
-    }
-  }
-
-  private simulateLocalUser(email: string): void {
-    const mockUser: any = {
-      id: 'usr-' + Math.random().toString(36).substring(2, 9),
-      email: email,
-      app_metadata: { provider: email.includes('gmail') ? 'google' : email.includes('github') ? 'github' : 'email' },
-      user_metadata: { name: email.split('@')[0] },
-      aud: 'authenticated',
-      created_at: new Date().toISOString()
-    };
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(MOCK_USER_STORAGE, JSON.stringify(mockUser));
-    }
-    this.currentUser.set(mockUser);
-    this.isAuthenticated.set(true);
-    this.syncStatus.set('SYNCED_CLOUD');
-    this.lastSyncTime.set(new Date().toLocaleTimeString());
+    this.syncStatus.set(this.isCloudConfigured() ? 'UNAUTHENTICATED' : 'LOCAL_SANDBOX');
+    this.userCloudStories.set([]);
   }
 
   /**
-   * Persist complete story tree to Supabase / Local Storage
+   * Real Cloud Sync: Persists Stories, Nodes, Edges, and Lore into PostgreSQL tables
    */
   async syncStoryToCloud(tree: StoryTree): Promise<{ success: boolean; message: string }> {
-    this.syncStatus.set('SYNCING');
-    const user = this.currentUser();
-
-    if (!user) {
-      this.syncStatus.set('LOCAL_OFFLINE');
-      return { success: false, message: 'Sign in to sync your story to the cloud' };
+    if (!this.client || !this.isCloudConfigured()) {
+      this.syncStatus.set('LOCAL_SANDBOX');
+      return {
+        success: false,
+        message: 'Saved locally in IndexedDB. (Connect Supabase in Cloud Sync for multi-device sync)'
+      };
     }
 
+    const user = this.currentUser();
+    if (!user) {
+      this.syncStatus.set('UNAUTHENTICATED');
+      return { success: false, message: 'Please sign in to sync your story to PostgreSQL Cloud.' };
+    }
+
+    this.syncStatus.set('SYNCING');
+    this.syncErrorMessage.set(null);
+
     try {
-      if (this.client && this.isCustomBackendConfigured()) {
-        const { error } = await this.client.from('stories').upsert({
-          id: tree.id,
-          user_id: user.id,
-          title: tree.title,
-          description: tree.description,
-          genre: tree.genre,
-          style_config: tree.styleConfig,
+      // 1. Upsert Story Header
+      const { error: storyErr } = await this.client.from('stories').upsert({
+        id: tree.id,
+        user_id: user.id,
+        title: tree.title,
+        description: tree.description || '',
+        genre: tree.genre || 'Cyberpunk',
+        style_config: tree.styleConfig || {},
+        updated_at: new Date().toISOString()
+      });
+      if (storyErr) throw storyErr;
+
+      // 2. Upsert Nodes in Batches
+      const nodeArray = Object.values(tree.nodes || {});
+      if (nodeArray.length > 0) {
+        const nodePayloads = nodeArray.map(n => ({
+          id: n.id,
+          story_id: tree.id,
+          parent_node_id: n.parentNodeId || null,
+          title: n.title,
+          content: n.content,
+          author_type: n.authorType || 'HUMAN',
+          agent_persona: n.agentPersona || null,
+          status: n.status || 'ACTIVE',
+          coherence_score: n.coherenceScore || null,
+          depth: n.depth || 0,
+          word_count: n.wordCount || 0,
+          created_at: n.createdAt || new Date().toISOString(),
           updated_at: new Date().toISOString()
-        });
-        if (error) throw error;
+        }));
+
+        const { error: nodeErr } = await this.client.from('tree_nodes').upsert(nodePayloads);
+        if (nodeErr) throw nodeErr;
       }
 
-      await new Promise(r => setTimeout(r, 400));
+      // 3. Upsert Edges
+      if (tree.edges && tree.edges.length > 0) {
+        const edgePayloads = tree.edges.map(e => ({
+          id: e.id,
+          story_id: tree.id,
+          source_node_id: e.sourceNodeId,
+          target_node_id: e.targetNodeId,
+          edge_type: e.edgeType || 'BRANCH',
+          label: e.label || null
+        }));
+
+        const { error: edgeErr } = await this.client.from('tree_edges').upsert(edgePayloads);
+        if (edgeErr) throw edgeErr;
+      }
+
+      // 4. Upsert Lore Entities
+      if (tree.loreBible && tree.loreBible.length > 0) {
+        const lorePayloads = tree.loreBible.map(l => ({
+          id: l.id,
+          story_id: tree.id,
+          name: l.name,
+          category: l.category,
+          description: l.description,
+          traits: l.traits || []
+        }));
+
+        const { error: loreErr } = await this.client.from('lore_entities').upsert(lorePayloads);
+        if (loreErr) throw loreErr;
+      }
+
       this.syncStatus.set('SYNCED_CLOUD');
       this.lastSyncTime.set(new Date().toLocaleTimeString());
-      return { success: true, message: 'Story synced to Cloud successfully!' };
+      await this.fetchUserStories();
+
+      return { success: true, message: 'Story successfully synced to PostgreSQL Cloud!' };
     } catch (err: any) {
-      console.warn('Cloud sync error; saving locally:', err);
+      console.error('Real Cloud Sync failed:', err);
       this.syncStatus.set('SYNC_ERROR');
-      return { success: false, message: err.message || 'Sync error' };
+      this.syncErrorMessage.set(err.message || 'Database error');
+      return { success: false, message: `Cloud Sync Error: ${err.message || 'PostgreSQL transaction failed'}` };
     }
   }
 
-  async fetchUserStories(): Promise<void> {
-    const user = this.currentUser();
-    if (!user || !this.client || !this.isCustomBackendConfigured()) return;
+  /**
+   * Fetch complete story tree from PostgreSQL
+   */
+  async loadStoryFromCloud(storyId: string): Promise<StoryTree | null> {
+    if (!this.client || !this.isCloudConfigured()) return null;
 
     try {
-      const { data } = await this.client
+      const { data: story, error: sErr } = await this.client
         .from('stories')
-        .select('id, title, updated_at, is_public')
-        .eq('user_id', user.id);
+        .select('*')
+        .eq('id', storyId)
+        .single();
+
+      if (sErr || !story) return null;
+
+      const [nodesRes, edgesRes, loreRes] = await Promise.all([
+        this.client.from('tree_nodes').select('*').eq('story_id', storyId).order('depth', { ascending: true }),
+        this.client.from('tree_edges').select('*').eq('story_id', storyId),
+        this.client.from('lore_entities').select('*').eq('story_id', storyId)
+      ]);
+
+      const nodeRecord: Record<string, TreeNode> = {};
+      let firstNodeId = '';
+
+      (nodesRes.data || []).forEach((n: any) => {
+        if (!firstNodeId) firstNodeId = n.id;
+        nodeRecord[n.id] = {
+          id: n.id,
+          treeId: n.story_id,
+          parentNodeId: n.parent_node_id || null,
+          title: n.title,
+          content: n.content,
+          authorType: n.author_type || 'HUMAN',
+          agentPersona: n.agent_persona,
+          status: n.status || 'ACTIVE',
+          coherenceScore: n.coherence_score,
+          depth: n.depth || 0,
+          wordCount: n.word_count || 0,
+          createdAt: n.created_at,
+          updatedAt: n.updated_at
+        };
+      });
+
+      const edges: TreeEdge[] = (edgesRes.data || []).map((e: any) => ({
+        id: e.id,
+        treeId: e.story_id,
+        sourceNodeId: e.source_node_id,
+        targetNodeId: e.target_node_id,
+        edgeType: e.edge_type,
+        label: e.label
+      }));
+
+      const loreBible: LoreEntity[] = (loreRes.data || []).map((l: any) => ({
+        id: l.id,
+        name: l.name,
+        category: l.category,
+        description: l.description,
+        traits: l.traits || []
+      }));
+
+      return {
+        id: story.id,
+        title: story.title,
+        description: story.description,
+        genre: story.genre,
+        styleConfig: story.style_config || undefined,
+        rootNodeId: firstNodeId,
+        nodes: nodeRecord,
+        edges,
+        loreBible,
+        createdAt: story.created_at,
+        updatedAt: story.updated_at,
+        version: 1
+      };
+    } catch (err) {
+      console.error('Failed to load story from cloud:', err);
+      return null;
+    }
+  }
+
+  /**
+   * List all stories owned by the current authenticated user
+   */
+  async fetchUserStories(): Promise<void> {
+    const user = this.currentUser();
+    if (!user || !this.client || !this.isCloudConfigured()) return;
+
+    try {
+      const { data, error } = await this.client
+        .from('stories')
+        .select('id, title, description, genre, updated_at, is_public')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
 
       if (data) {
         this.userCloudStories.set(data.map((d: any) => ({
           id: d.id,
           title: d.title,
-          updatedAt: d.updated_at,
+          description: d.description || '',
+          genre: d.genre || 'Cyberpunk',
+          updatedAt: new Date(d.updated_at).toLocaleDateString(),
           isPublic: d.is_public || false
         })));
       }
-    } catch {
-      // Fallback
+    } catch (err) {
+      console.warn('Failed to fetch user stories:', err);
     }
   }
 }
