@@ -149,6 +149,17 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
 
       <!-- Mobile Right Controls (< 1024px) -->
       <div class="mobile-actions">
+        <!-- Quick Cloud Sync status on mobile -->
+        <button 
+          class="mobile-btn cloud-pill" 
+          [class.authenticated]="supabase.isAuthenticated()"
+          (click)="openAuthEvent.emit()" 
+          title="Cloud Sync"
+        >
+          <span class="status-dot" [class.online]="supabase.isAuthenticated()"></span>
+          <span>☁️</span>
+        </button>
+
         @if (store.activeViewMode() === 'CANVAS') {
           <button 
             class="mobile-btn inspector-pill" 
@@ -160,7 +171,7 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
           </button>
         }
 
-        <button class="mobile-btn menu-btn" (click)="openMobileMenuEvent.emit()" title="Open Menu">
+        <button class="mobile-btn menu-btn" (click)="openMobileMenuEvent.emit()" title="Open Controls Menu">
           ☰
         </button>
       </div>
@@ -597,9 +608,41 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
 
     @media (max-width: 900px) {
       .desktop-actions { display: none; }
-      .mobile-actions { display: flex; }
-      .brand-text { max-width: 120px; }
-      .story-title-text { max-width: 100px; }
+      .mobile-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      .brand-group {
+        min-width: 0;
+        flex: 1;
+      }
+      .brand-text {
+        max-width: 105px;
+      }
+      .story-title-text {
+        max-width: 95px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .view-mode-pill {
+        padding: 2px;
+        flex-shrink: 0;
+      }
+      .mode-btn {
+        padding: 4px 8px;
+        font-size: 11px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .brand-text .flex { display: none; }
+      .brand-text { max-width: 80px; }
+      .story-title-text { max-width: 70px; }
+      .mode-btn { padding: 4px 6px; font-size: 10px; }
+      .mobile-btn { padding: 4px 8px; font-size: 11px; }
     }
 
     /* Custom In-App Modal Dialogs */

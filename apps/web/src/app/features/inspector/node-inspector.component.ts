@@ -348,15 +348,15 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
             <div class="flex flex-col gap-2.5 mt-3">
               <button class="btn-modal-action prune" (click)="proceedWithPruneChildren()">
                 <div class="text-left">
-                  <div class="font-bold text-xs text-amber-300">✂️ Cascade Prune Child Branches</div>
-                  <div class="text-xxs text-slate-400">Keeps child cards visible on canvas marked as pruned / archived.</div>
+                  <div class="action-title prune-text">✂️ Cascade Prune Child Branches</div>
+                  <div class="action-desc">Keeps child branch cards visible on canvas marked as archived / pruned.</div>
                 </div>
               </button>
 
               <button class="btn-modal-action delete" (click)="proceedWithDeleteChildren()">
                 <div class="text-left">
-                  <div class="font-bold text-xs text-red-400">🗑️ Delete Child Branches Permanently</div>
-                  <div class="text-xxs text-slate-400">Completely removes all downstream child branches and edges.</div>
+                  <div class="action-title delete-text">🗑️ Delete Child Branches Permanently</div>
+                  <div class="action-desc">Completely removes all downstream child branch cards and connecting curves.</div>
                 </div>
               </button>
             </div>
@@ -1086,25 +1086,58 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
     }
 
     .btn-modal-action {
-      background: #0b1120;
-      border: 1px solid #1e293b;
-      padding: 10px 12px;
-      border-radius: 8px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      padding: 12px 14px;
+      border-radius: 10px;
       cursor: pointer;
       display: flex;
       align-items: center;
-      transition: all 0.15s ease;
+      transition: all 0.2s ease;
       width: 100%;
     }
 
+    .btn-modal-action.prune {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.45);
+    }
+
     .btn-modal-action.prune:hover {
-      background: rgba(245, 158, 11, 0.15);
-      border-color: rgba(245, 158, 11, 0.5);
+      background: rgba(245, 158, 11, 0.22);
+      border-color: #f59e0b;
+      transform: translateY(-1px);
+    }
+
+    .btn-modal-action.delete {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.45);
     }
 
     .btn-modal-action.delete:hover {
-      background: rgba(239, 68, 68, 0.15);
-      border-color: rgba(239, 68, 68, 0.5);
+      background: rgba(239, 68, 68, 0.22);
+      border-color: #ef4444;
+      transform: translateY(-1px);
+    }
+
+    .action-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .action-title.prune-text {
+      color: #fde047;
+    }
+
+    .action-title.delete-text {
+      color: #fca5a5;
+    }
+
+    .action-desc {
+      font-size: 11px;
+      color: #cbd5e1;
+      margin-top: 3px;
+      line-height: 1.35;
     }
 
     .custom-modal-footer {
