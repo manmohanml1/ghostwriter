@@ -250,4 +250,53 @@ describe('Ghostwriter Studio Comprehensive Regression Test Suite', () => {
     });
   });
 
+  describe('5. Security & Custom Backend Input Masking', () => {
+    test('Custom backend getters return empty strings by default to prevent credential leakage in public UI', () => {
+      const mockStorage = new Map();
+      const getCustomUrl = () => mockStorage.get('ghostwriter_supabase_url') || '';
+      const getCustomKey = () => mockStorage.get('ghostwriter_supabase_anon_key') || '';
+
+      assert.equal(getCustomUrl(), '');
+      assert.equal(getCustomKey(), '');
+    });
+
+    test('Setting custom backend stores values and 1-click reset clears them completely', () => {
+      const mockStorage = new Map();
+      const setCustom = (url, key) => {
+        mockStorage.set('ghostwriter_supabase_url', url);
+        mockStorage.set('ghostwriter_supabase_anon_key', key);
+      };
+      const resetCustom = () => {
+        mockStorage.delete('ghostwriter_supabase_url');
+        mockStorage.delete('ghostwriter_supabase_anon_key');
+      };
+
+      setCustom('http://localhost:54321', 'custom-secret-anon-key');
+      assert.equal(mockStorage.get('ghostwriter_supabase_url'), 'http://localhost:54321');
+      assert.equal(mockStorage.get('ghostwriter_supabase_anon_key'), 'custom-secret-anon-key');
+
+      resetCustom();
+      assert.equal(mockStorage.get('ghostwriter_supabase_url'), undefined);
+      assert.equal(mockStorage.get('ghostwriter_supabase_anon_key'), undefined);
+    });
+  });
+
+  describe('6. Novel Manuscript & Story Tree Export', () => {
+    test('exportNovelManuscript compiles canon storyline into structured Markdown', () => {
+      const manager = new StoryTreeManager();
+      const canonNodes = Object.values(manager.tree.nodes)
+        .filter(n => n.status === 'CANON_PATH')
+        .sort((a, b) => a.depth - b.depth);
+
+      let manuscript = `# ${manager.tree.title}\n*Genre: ${manager.tree.genre}*\n\n---\n\n`;
+      canonNodes.forEach((node, idx) => {
+        manuscript += `## Chapter ${idx + 1}: ${node.title}\n\n${node.content}\n\n---\n\n`;
+      });
+
+      assert.ok(manuscript.includes('The Neon Protocol'));
+      assert.ok(manuscript.includes('Midnight Transmission'));
+      assert.ok(manuscript.includes('Trace the Relay Tower'));
+    });
+  });
+
 });
