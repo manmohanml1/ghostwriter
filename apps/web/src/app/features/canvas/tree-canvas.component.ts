@@ -52,7 +52,7 @@ interface LayoutEdge {
         [style.transform]="'translate(' + panX() + 'px, ' + panY() + 'px) scale(' + store.zoomLevel() + ')'"
       >
         <!-- SVG Connecting Curves Layer -->
-        <svg class="edges-layer" [attr.width]="canvasBounds().width" [attr.height]="canvasBounds().height">
+        <svg class="edges-layer" width="4000" height="3000">
           <defs>
             <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stop-color="#6366f1" stop-opacity="0.8" />

@@ -56,6 +56,7 @@ export class TreeStore {
   readonly isGeneratingAI = signal<boolean>(false);
   readonly isExpandingChapter = signal<boolean>(false);
   readonly activeAiSuggestions = signal<AIBranchSuggestion[]>([]);
+  readonly previousChapterContent = signal<{ nodeId: string; content: string; title: string } | null>(null);
 
   // Reader Settings
   readonly readerTheme = signal<ReaderTheme>(this.loadInitialTheme());
@@ -64,6 +65,12 @@ export class TreeStore {
   // Lore & Style Signals
   readonly loreBible = signal<LoreEntity[]>(this.currentTree().loreBible || DEFAULT_LORE);
   readonly styleConfig = signal<StoryStyleConfig>(this.currentTree().styleConfig || DEFAULT_STYLE);
+
+  readonly canUndoAI = computed<boolean>(() => {
+    const prev = this.previousChapterContent();
+    const active = this.selectedNode();
+    return prev !== null && active !== null && prev.nodeId === active.id;
+  });
 
   // Computeds
   readonly selectedNode = computed<TreeNode | null>(() => {
@@ -195,6 +202,13 @@ export class TreeStore {
     const active = this.selectedNode();
     if (!active) return;
 
+    // Save previous state for 1-click Undo
+    this.previousChapterContent.set({
+      nodeId: active.id,
+      content: active.content,
+      title: active.title
+    });
+
     this.isExpandingChapter.set(true);
     try {
       const result = await this.aiService.expandToFullChapter(
@@ -222,6 +236,13 @@ export class TreeStore {
     const active = this.selectedNode();
     if (!active) return;
 
+    // Save previous state for 1-click Undo
+    this.previousChapterContent.set({
+      nodeId: active.id,
+      content: active.content,
+      title: active.title
+    });
+
     this.isGeneratingAI.set(true);
     try {
       const addition = await this.aiService.continueNextParagraph(
@@ -242,6 +263,19 @@ export class TreeStore {
       console.error('Failed to append paragraph:', err);
     } finally {
       this.isGeneratingAI.set(false);
+    }
+  }
+
+  undoLastAIChange(): void {
+    const prev = this.previousChapterContent();
+    if (!prev) return;
+    const tree = this.currentTree();
+    if (tree.nodes[prev.nodeId]) {
+      this.updateNode(prev.nodeId, {
+        content: prev.content,
+        title: prev.title
+      });
+      this.previousChapterContent.set(null);
     }
   }
 

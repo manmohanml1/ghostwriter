@@ -155,8 +155,25 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
             <div class="form-group flex-1 flex flex-col">
               <div class="flex justify-between items-center mb-1">
                 <label class="form-label">Chapter Narrative (Markdown)</label>
-                <span class="text-xs text-slate-500 font-mono">{{ node.content.length }} chars</span>
+                <div class="flex items-center gap-2">
+                  @if (store.canUndoAI()) {
+                    <button class="btn-undo-link" (click)="store.undoLastAIChange()" title="Revert to previous text before AI generation">
+                      ↺ Undo AI Write
+                    </button>
+                  }
+                  <span class="text-xs text-slate-500 font-mono">{{ node.content.length }} chars</span>
+                </div>
               </div>
+
+              @if (store.canUndoAI()) {
+                <div class="undo-banner mb-2">
+                  <span class="undo-text">✨ AI writing generated. Review or revert anytime:</span>
+                  <button class="btn-undo-ai" (click)="store.undoLastAIChange()">
+                    ↺ Restore Previous Text
+                  </button>
+                </div>
+              }
+
               <textarea
                 class="textarea-content"
                 [ngModel]="node.content"
@@ -489,6 +506,58 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
       height: 100%;
       background: linear-gradient(90deg, #6366f1 0%, #a855f7 100%);
       transition: width 0.3s ease;
+    }
+
+    .undo-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: rgba(168, 85, 247, 0.12);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      padding: 8px 12px;
+      border-radius: 8px;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .undo-text {
+      font-size: 11px;
+      color: #e9d5ff;
+      font-weight: 500;
+    }
+
+    .btn-undo-ai {
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      color: #fff;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 8px rgba(168, 85, 247, 0.3);
+    }
+
+    .btn-undo-ai:hover {
+      filter: brightness(1.15);
+      transform: translateY(-1px);
+    }
+
+    .btn-undo-link {
+      background: transparent;
+      border: none;
+      color: #c084fc;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0;
+    }
+
+    .btn-undo-link:hover {
+      color: #e9d5ff;
     }
 
     .pruned-alert-box {
