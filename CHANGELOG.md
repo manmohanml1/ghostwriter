@@ -4,6 +4,15 @@ All notable changes to **Ghostwriter** are documented in this file in accordance
 
 ---
 
+## [0.5.2] - 2026-08-23
+
+### Security & UX Hardening
+- **Protected Sensitive Endpoint Configuration**: Custom Backend forms no longer expose or pre-populate internal Supabase project URLs or keys in public text inputs.
+- **Dedicated Custom Backend Reset**: Added 1-click `[↺ Reset]` action allowing self-hosted users to revert to the default cloud backend seamlessly.
+- **Glassmorphism Custom Backend UI**: Upgraded custom backend form with sleek purple gradient action buttons and descriptive security banners.
+
+---
+
 ## [0.5.1] - 2026-08-23
 
 ### Added

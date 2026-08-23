@@ -1,6 +1,6 @@
 {
   "name": "ghostwriter-monorepo",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Ghostwriter — AI Co-Writing Studio with Interactive Branching Narratives",
   "private": true,
   "workspaces": [
@@ -8,6 +8,9 @@
     "packages/*"
   ],
   "scripts": {
+    "test": "npm --workspace=apps/web run test",
+    "build": "npm --workspace=apps/web run build",
+    "start": "npm --workspace=apps/web run start",
     "start:web": "npm run start --workspace=apps/web",
     "build:web": "npm run build --workspace=apps/web",
     "test:web": "npm run test --workspace=apps/web"

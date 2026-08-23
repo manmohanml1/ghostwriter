@@ -5,6 +5,7 @@ import { TreeStore } from '../../core/state/tree.store';
 import { AIGeneratorService } from '../../core/services/ai-generator.service';
 import { SupabaseService } from '../../core/services/supabase.service';
 import { StyleControlsComponent } from '../style-controls/style-controls.component';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-header',
@@ -18,7 +19,7 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
         <div class="brand-text">
           <div class="flex items-center gap-1.5">
             <span class="brand-title">Ghostwriter</span>
-            <span class="version-badge">v0.5.0</span>
+            <span class="version-badge">v{{ appVersion }}</span>
           </div>
           <button class="story-switcher-btn" (click)="toggleStoryMenu()" title="Click to switch story">
             <span class="story-title-text">{{ store.currentTree().title }}</span>
@@ -796,6 +797,7 @@ export class HeaderComponent {
   readonly store = inject(TreeStore);
   readonly aiService = inject(AIGeneratorService);
   readonly supabase = inject(SupabaseService);
+  readonly appVersion = environment.version;
 
   readonly openSettingsEvent = output<void>();
   readonly openAuthEvent = output<void>();
