@@ -428,22 +428,97 @@ export class TreeStore {
     this.saveToStorage(updatedTree);
   }
 
+  getAllDescendantIds(nodeId: string, tree: StoryTree = this.currentTree()): string[] {
+    const directChildren = Object.values(tree.nodes).filter(n => n.parentNodeId === nodeId);
+    const result: string[] = [];
+    for (const child of directChildren) {
+      result.push(child.id);
+      result.push(...this.getAllDescendantIds(child.id, tree));
+    }
+    return result;
+  }
+
   pruneNode(nodeId: string): void {
     const tree = this.currentTree();
     if (nodeId === tree.rootNodeId) return;
 
-    this.updateNode(nodeId, { status: 'PRUNED' });
-    if (this.selectedNodeId() === nodeId) {
-      const node = tree.nodes[nodeId];
-      if (node?.parentNodeId) {
-        this.selectedNodeId.set(node.parentNodeId);
+    // Recursively cascade prune node AND all descendant child branches
+    const descendantIds = this.getAllDescendantIds(nodeId, tree);
+    const allPruneIds = new Set([nodeId, ...descendantIds]);
+
+    const updatedNodes = { ...tree.nodes };
+    allPruneIds.forEach(id => {
+      if (updatedNodes[id]) {
+        updatedNodes[id] = { ...updatedNodes[id], status: 'PRUNED', updatedAt: new Date().toISOString() };
       }
+    });
+
+    const updatedTree: StoryTree = {
+      ...tree,
+      nodes: updatedNodes,
+      loreBible: this.loreBible(),
+      styleConfig: this.styleConfig(),
+      updatedAt: new Date().toISOString(),
+      version: tree.version + 1
+    };
+
+    this.currentTree.set(updatedTree);
+    if (allPruneIds.has(this.selectedNodeId())) {
+      const node = tree.nodes[nodeId];
+      this.selectedNodeId.set(node?.parentNodeId || tree.rootNodeId);
     }
+    this.saveToStorage(updatedTree);
   }
 
-  restorePrunedNode(nodeId: string): void {
-    this.updateNode(nodeId, { status: 'ACTIVE' });
-    this.selectedNodeId.set(nodeId);
+  pruneChildrenOf(nodeId: string): void {
+    const tree = this.currentTree();
+    const descendantIds = this.getAllDescendantIds(nodeId, tree);
+    if (descendantIds.length === 0) return;
+
+    const updatedNodes = { ...tree.nodes };
+    descendantIds.forEach(id => {
+      if (updatedNodes[id]) {
+        updatedNodes[id] = { ...updatedNodes[id], status: 'PRUNED', updatedAt: new Date().toISOString() };
+      }
+    });
+
+    const updatedTree: StoryTree = {
+      ...tree,
+      nodes: updatedNodes,
+      loreBible: this.loreBible(),
+      styleConfig: this.styleConfig(),
+      updatedAt: new Date().toISOString(),
+      version: tree.version + 1
+    };
+
+    this.currentTree.set(updatedTree);
+    this.saveToStorage(updatedTree);
+  }
+
+  deleteChildrenOf(nodeId: string): void {
+    const tree = this.currentTree();
+    const descendantIds = new Set(this.getAllDescendantIds(nodeId, tree));
+    if (descendantIds.size === 0) return;
+
+    const updatedNodes = { ...tree.nodes };
+    descendantIds.forEach(id => delete updatedNodes[id]);
+
+    const updatedEdges = tree.edges.filter(
+      e => !descendantIds.has(e.sourceNodeId) && !descendantIds.has(e.targetNodeId)
+    );
+
+    const updatedTree: StoryTree = {
+      ...tree,
+      nodes: updatedNodes,
+      edges: updatedEdges,
+      loreBible: this.loreBible(),
+      styleConfig: this.styleConfig(),
+      updatedAt: new Date().toISOString(),
+      version: tree.version + 1
+    };
+
+    this.currentTree.set(updatedTree);
+    this.saveToStorage(updatedTree);
   }
 
   permanentlyDeleteNode(nodeId: string): void {

@@ -300,9 +300,10 @@ export class SupabaseService {
     this.syncErrorMessage.set(null);
 
     try {
-      const storyUUID = toUUID(`${user.id}:${tree.id}`);
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tree.id);
+      const storyUUID = isUUID ? tree.id : toUUID(`${user.id}:${tree.id}`);
 
-      // 1. Upsert Story Header
+      // 1. Upsert Story Header (updates in place without duplicates)
       const { error: storyErr } = await this.client.from('stories').upsert({
         id: storyUUID,
         user_id: user.id,

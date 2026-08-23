@@ -90,16 +90,15 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
             </div>
 
             @if (node.status === 'PRUNED') {
-              <!-- Pruned Node Recovery Banner -->
+              <!-- Pruned Node Clean Banner -->
               <div class="pruned-alert-box">
                 <div class="flex items-center justify-between">
                   <div>
-                    <h5 class="pruned-title">⛔ This branch was pruned</h5>
+                    <h5 class="pruned-title">⛔ This branch is pruned</h5>
                     <p class="pruned-desc">This timeline is excluded from the canon story.</p>
                   </div>
                   <div class="flex gap-2">
-                    <button class="btn-restore" (click)="store.restorePrunedNode(node.id)">♻️ Restore</button>
-                    <button class="btn-delete-perm" (click)="store.permanentlyDeleteNode(node.id)">🗑️ Delete</button>
+                    <button class="btn-delete-perm" (click)="store.permanentlyDeleteNode(node.id)">🗑️ Clean & Delete</button>
                   </div>
                 </div>
               </div>
@@ -113,28 +112,34 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
                 class="input-title"
                 [ngModel]="node.title"
                 (ngModelChange)="onTitleChange($event)"
-                placeholder="e.g. Chapter 1: The Midnight Transmission"
+                placeholder="Chapter title..."
               />
             </div>
 
-            <!-- Deep Webnovel Chapter Expander Actions -->
-            <div class="novel-writer-tools">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-200">⚡ Webnovel Pro Actions:</span>
+            <!-- Webnovel Pro Actions -->
+            <div class="pro-actions-card">
+              <div class="flex items-center justify-between mb-2">
+                <span class="pro-label">⚡ Webnovel Pro Actions</span>
+                <span class="pro-badge">AI Assistant</span>
+              </div>
+
+              <div class="form-group mb-2">
+                <label class="form-sublabel">Chapter Beat Focus & Detail:</label>
                 <select [(ngModel)]="selectedBeatFocus" class="select-beat">
                   <option value="BALANCED">⚖️ Balanced Multi-Scene</option>
-                  <option value="ACTION_CONFRONTATION">💥 Action & Confrontation</option>
-                  <option value="CHARACTER_DIALOGUE">🗣️ Deep Dialogue & Drama</option>
-                  <option value="INVESTIGATION_LORE">🔍 Forensic Investigation</option>
-                  <option value="CLIFFHANGER_CLIMAX">⚡ Shocking Cliffhanger</option>
+                  <option value="ACTION">⚔️ Fast-Paced Action & Tension</option>
+                  <option value="DIALOGUE">💬 Deep Character Dialogue</option>
+                  <option value="WORLD_BUILDING">🏛️ Atmospheric Lore & Setting</option>
+                  <option value="SUSPENSE">🕯️ Slow-Burn Psychological Suspense</option>
                 </select>
               </div>
 
               <div class="grid grid-cols-2 gap-2 mt-2">
                 <button 
                   class="btn-expand-novel"
+                  [class.btn-has-children]="store.activeChildren().length > 0"
                   [disabled]="store.isExpandingChapter()"
-                  (click)="expandChapter()"
+                  (click)="handleExpandClick()"
                 >
                   @if (store.isExpandingChapter()) { ⏳ Expanding Novel Chapter... }
                   @else { ⚡ Expand into Full Chapter }
@@ -142,8 +147,9 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
 
                 <button 
                   class="btn-continue-para"
+                  [class.btn-has-children]="store.activeChildren().length > 0"
                   [disabled]="store.isGeneratingAI()"
-                  (click)="store.appendNextParagraph()"
+                  (click)="handleAppendParaClick()"
                 >
                   @if (store.isGeneratingAI()) { ⏳ Writing... }
                   @else { ⏩ + Write Next Paragraph }
@@ -164,18 +170,6 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
                   <span class="text-xs text-slate-500 font-mono">{{ node.content.length }} chars</span>
                 </div>
               </div>
-
-              @if (store.activeChildren().length > 0) {
-                <div class="parent-branch-warning-banner mb-2">
-                  <div class="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
-                    <span>⚠️</span>
-                    <span>Parent Chapter ({{ store.activeChildren().length }} Child Branches)</span>
-                  </div>
-                  <p class="text-xxs text-amber-200 mt-0.5">
-                    Modifying this root prose may create narrative divergence with downstream paths.
-                  </p>
-                </div>
-              }
 
               @if (store.canUndoAI()) {
                 <div class="undo-banner mb-2">
@@ -328,7 +322,7 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
       </aside>
     }
 
-    <!-- Divergence Confirmation Modal -->
+    <!-- Divergence Confirmation Modal with Prune or Delete Options -->
     @if (showExpandWarningModal()) {
       <div class="custom-modal-backdrop" (click)="showExpandWarningModal.set(false)">
         <div class="custom-modal-card" (click)="$event.stopPropagation()">
@@ -336,8 +330,8 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
             <div class="flex items-center gap-2">
               <span class="text-xl">⚠️</span>
               <div>
-                <h3 class="custom-modal-title">Modify Active Parent Chapter?</h3>
-                <p class="custom-modal-subtitle">This node has {{ store.activeChildren().length }} child branch(es).</p>
+                <h3 class="custom-modal-title">Parent Chapter Has {{ store.activeChildren().length }} Child Branches</h3>
+                <p class="custom-modal-subtitle">Modifying this chapter alters upstream canon continuity.</p>
               </div>
             </div>
             <button class="btn-modal-close" (click)="showExpandWarningModal.set(false)">✕</button>
@@ -345,19 +339,31 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
 
           <div class="custom-modal-body">
             <div class="warning-box">
-              <span class="warning-tag">⚠️ Continuity & Divergence Notice</span>
+              <span class="warning-tag">⚠️ Choose How to Handle Downstream Branches:</span>
               <p class="warning-text">
-                Expanding or rewriting this root chapter will alter the narrative context for its <b>{{ store.activeChildren().length }}</b> existing downstream branches.
+                Rewriting this root chapter will cause narrative divergence with its <b>{{ store.activeChildren().length }} downstream branch(es)</b>.
               </p>
-              <p class="warning-text mt-2">
-                Child branches will remain connected, but their setup may diverge from the rewritten text. You can also use <b>↺ Undo AI Write</b> to restore previous text at any time.
-              </p>
+            </div>
+
+            <div class="flex flex-col gap-2.5 mt-3">
+              <button class="btn-modal-action prune" (click)="proceedWithPruneChildren()">
+                <div class="text-left">
+                  <div class="font-bold text-xs text-amber-300">✂️ Cascade Prune Child Branches</div>
+                  <div class="text-xxs text-slate-400">Keeps child cards visible on canvas marked as pruned / archived.</div>
+                </div>
+              </button>
+
+              <button class="btn-modal-action delete" (click)="proceedWithDeleteChildren()">
+                <div class="text-left">
+                  <div class="font-bold text-xs text-red-400">🗑️ Delete Child Branches Permanently</div>
+                  <div class="text-xxs text-slate-400">Completely removes all downstream child branches and edges.</div>
+                </div>
+              </button>
             </div>
           </div>
 
           <div class="custom-modal-footer">
             <button class="btn-cancel" (click)="showExpandWarningModal.set(false)">Cancel</button>
-            <button class="btn-primary" (click)="proceedWithExpand()">⚡ Proceed with AI Expand</button>
           </div>
         </div>
       </div>
@@ -381,6 +387,7 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
       transform: translateX(100%);
       width: 0;
       opacity: 0;
+      pointer-events: none;
     }
 
     .inspector-header {
@@ -700,6 +707,11 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
     .btn-continue-para:hover {
       background: #334155;
       color: #fff;
+    }
+
+    .btn-has-children {
+      border: 1px solid #f59e0b !important;
+      background: linear-gradient(135deg, #b45309, #d97706) !important;
     }
 
     .form-group {
@@ -1073,6 +1085,28 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
       line-height: 1.4;
     }
 
+    .btn-modal-action {
+      background: #0b1120;
+      border: 1px solid #1e293b;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: all 0.15s ease;
+      width: 100%;
+    }
+
+    .btn-modal-action.prune:hover {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.5);
+    }
+
+    .btn-modal-action.delete:hover {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
     .custom-modal-footer {
       display: flex;
       justify-content: flex-end;
@@ -1122,6 +1156,7 @@ export class NodeInspectorComponent {
   readonly activeTab = signal<InspectorTab>('EDITOR');
   readonly showNewBranchForm = signal<boolean>(false);
   readonly showExpandWarningModal = signal<boolean>(false);
+  pendingAction: 'EXPAND' | 'PARAGRAPH' = 'EXPAND';
   selectedBeatFocus: ChapterBeatFocus = 'BALANCED';
 
   newBranchTitle = '';
@@ -1142,20 +1177,51 @@ export class NodeInspectorComponent {
     }
   }
 
-  expandChapter(): void {
+  handleExpandClick(): void {
     if (this.store.activeChildren().length > 0) {
+      this.pendingAction = 'EXPAND';
       this.showExpandWarningModal.set(true);
     } else {
-      this.proceedWithExpand();
+      this.executeAIWrite('EXPAND');
     }
   }
 
-  proceedWithExpand(): void {
+  handleAppendParaClick(): void {
+    if (this.store.activeChildren().length > 0) {
+      this.pendingAction = 'PARAGRAPH';
+      this.showExpandWarningModal.set(true);
+    } else {
+      this.executeAIWrite('PARAGRAPH');
+    }
+  }
+
+  proceedWithPruneChildren(): void {
+    const active = this.store.selectedNode();
+    if (active) {
+      this.store.pruneChildrenOf(active.id);
+    }
     this.showExpandWarningModal.set(false);
-    this.store.expandActiveChapter({
-      targetLength: 'FULL_CHAPTER',
-      focusBeat: this.selectedBeatFocus
-    });
+    this.executeAIWrite(this.pendingAction);
+  }
+
+  proceedWithDeleteChildren(): void {
+    const active = this.store.selectedNode();
+    if (active) {
+      this.store.deleteChildrenOf(active.id);
+    }
+    this.showExpandWarningModal.set(false);
+    this.executeAIWrite(this.pendingAction);
+  }
+
+  private executeAIWrite(action: 'EXPAND' | 'PARAGRAPH'): void {
+    if (action === 'EXPAND') {
+      this.store.expandActiveChapter({
+        targetLength: 'FULL_CHAPTER',
+        focusBeat: this.selectedBeatFocus
+      });
+    } else {
+      this.store.appendNextParagraph();
+    }
   }
 
   submitNewBranch(): void {
