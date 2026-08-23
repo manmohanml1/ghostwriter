@@ -68,3 +68,57 @@ Ghostwriter is engineered to operate permanently at **$0.00/month** total cost.
 > [!CAUTION]
 > **Zero Pre-Merge Production Deployments**:
 > Production deployment commands (`npx vercel --prod`) are strictly forbidden on unmerged feature branches. Production promotion happens strictly on `master` following merge approval.
+
+---
+
+## 5. Branch Protection, Rulesets & Pre-Push Guard Architecture
+
+Ghostwriter enforces an automated 3-layer security lockdown ensuring no code enters `master` without full regression verification and pull request review:
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                   3-LAYER REPOSITORY SECURITY LOCKDOWN                   │
+├──────────────────────────────────────────────────────────────────────────┤
+│ 1. LOCAL GIT PRE-PUSH GUARD (`.git/hooks/pre-push`)                     │
+│    • Intercepts local `git push origin master` commands immediately.     │
+│    • Aborts direct pushes before reaching the network.                   │
+├──────────────────────────────────────────────────────────────────────────┤
+│ 2. GITHUB REPOSITORY RULESET (ID: 21227008 — Active)                    │
+│    • Target: `refs/heads/master` & `refs/heads/main`                     │
+│    • Pull Request Required: Direct pushes hard-rejected (GH006 error).    │
+│    • Bypass Actors: Empty (`current_user_can_bypass: "never"`).          │
+│    • Mandatory Status Checks: `build-and-test` must pass on every PR.    │
+├──────────────────────────────────────────────────────────────────────────┤
+│ 3. CLASSIC BRANCH PROTECTION (`enforce_admins: true`)                    │
+│    • Blocks force pushes (`allow_force_pushes: false`).                  │
+│    • Blocks branch deletion (`allow_deletions: false`).                  │
+│    • Enforces admin compliance unconditionally.                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Pre-Deployment Verification Protocol
+Every commit and deployment must follow this sequence:
+1. **Local Regression Suite**: Run `npm test` locally (13 tests must pass).
+2. **Local Production Build**: Run `npm run build` locally (must exit with code 0).
+3. **Staging Preview**: Deploy feature branch via `npx vercel --yes` for staging smoke testing (required for code/UI changes; skipped for doc-only updates).
+4. **Pull Request**: Open PR targeting `master` on GitHub.
+5. **Merge & Tag**: Merge via GitHub, switch to `master`, pull, tag `vX.Y.Z` (if application code changed), and promote to production via `npx vercel --prod --yes`.
+
+---
+
+## 6. Vercel Deployment Trigger vs. Doc-Only Skip Policy
+
+To prevent wasted build minutes, redundant deployments, and clutter in the Vercel dashboard, deployments are strictly gated by change classification:
+
+| Change Category | Target Files & Paths | Pull Request Required? | Vercel Deployment Required? | Release Version Bump? |
+|---|---|:---:|:---:|:---:|
+| **App Code / Features / Fixes** | `apps/web/src/**`, `apps/web/package.json` | ✅ **YES** | ✅ **YES** (Preview & Production) | ✅ **YES** (`vX.Y.Z`) |
+| **Documentation / ADRs / Markdown** | `docs/**`, `*.md` | ✅ **YES** | ❌ **NO (Skip)** | ❌ **NO (Skip)** |
+| **CI Workflows / Tooling / Scripts** | `.github/**`, `scripts/**` | ✅ **YES** | ❌ **NO (Skip)** | ❌ **NO (Skip)** |
+
+### Governance Rules for Doc-Only Changes:
+1. **Always use a Pull Request**: All documentation and markdown changes must go through a feature branch (`docs/...`) and be merged into `master` via GitHub PR to honor repository rulesets and branch protection.
+2. **Skip Vercel Deployments**: Do NOT invoke `npx vercel` (staging preview or production) when changes are confined entirely to documentation or internal configuration.
+3. **Skip Release Version Bumps**: Documentation PRs do not represent new software builds and do not require version bumps in `package.json` or Git release tags.
+
+
