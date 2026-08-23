@@ -31,6 +31,9 @@ interface LayoutEdge {
       (mousemove)="onPanMove($event)"
       (mouseup)="onPanEnd()"
       (mouseleave)="onPanEnd()"
+      (touchstart)="onTouchStart($event)"
+      (touchmove)="onTouchMove($event)"
+      (touchend)="onTouchEnd()"
       (wheel)="onWheel($event)"
       tabindex="0"
       (keydown)="onKeyDown($event)"
@@ -498,6 +501,25 @@ export class TreeCanvasComponent {
     this.isPanning = false;
   }
 
+  onTouchStart(event: TouchEvent): void {
+    if ((event.target as HTMLElement).closest('.node-card, .canvas-controls')) return;
+    if (event.touches.length === 1) {
+      this.isPanning = true;
+      this.startX = event.touches[0].clientX - this.panX();
+      this.startY = event.touches[0].clientY - this.panY();
+    }
+  }
+
+  onTouchMove(event: TouchEvent): void {
+    if (!this.isPanning || event.touches.length !== 1) return;
+    this.panX.set(event.touches[0].clientX - this.startX);
+    this.panY.set(event.touches[0].clientY - this.startY);
+  }
+
+  onTouchEnd(): void {
+    this.isPanning = false;
+  }
+
   onWheel(event: WheelEvent): void {
     event.preventDefault();
     const delta = event.deltaY > 0 ? -0.08 : 0.08;
@@ -518,9 +540,10 @@ export class TreeCanvasComponent {
     this.panY.set(100);
   }
 
-  onNodeClick(event: MouseEvent, nodeId: string): void {
+  onNodeClick(event: MouseEvent | TouchEvent, nodeId: string): void {
     event.stopPropagation();
     this.store.selectNode(nodeId);
+    this.store.isInspectorOpen.set(true);
   }
 
   onKeyDown(event: KeyboardEvent): void {

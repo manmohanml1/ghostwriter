@@ -29,7 +29,7 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
             }
           </div>
 
-          <button class="btn-close" (click)="store.toggleInspector()" title="Toggle Inspector">✕</button>
+          <button class="btn-close" (click)="store.isInspectorOpen.set(false)" title="Close Inspector">✕ Done</button>
         </div>
 
         <!-- Inspector Tabs -->
@@ -874,7 +874,7 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
       line-height: 1.35;
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 1024px) {
       .inspector-panel {
         position: fixed;
         top: 56px;
