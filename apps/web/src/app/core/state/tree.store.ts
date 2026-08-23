@@ -2,6 +2,7 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { StoryTree, TreeNode, TreeEdge, AuthorType, ViewMode, ReaderTheme, LoreEntity, StoryStyleConfig, AIBranchSuggestion, ChapterGenerationOptions } from '../models/graph.models';
 import { NARRATIVE_STORY_TREE, ARCHITECTURE_DECISION_TREE } from '../fixtures/starter-trees';
 import { AIGeneratorService } from '../services/ai-generator.service';
+import { SupabaseService } from '../services/supabase.service';
 
 const STORAGE_KEY = 'ghostwriter_active_story_v1';
 const THEME_STORAGE_KEY = 'ghostwriter_reader_theme';
@@ -42,6 +43,8 @@ const DEFAULT_STYLE: StoryStyleConfig = {
 })
 export class TreeStore {
   private readonly aiService = inject(AIGeneratorService);
+  private readonly supabase = inject(SupabaseService);
+  private cloudSyncDebounceTimer: any = null;
 
   // Core Signals
   readonly currentTree = signal<StoryTree>(this.loadInitialTree());
@@ -523,15 +526,32 @@ export class TreeStore {
     return JSON.stringify(fullTree, null, 2);
   }
 
+  loadCloudStory(story: StoryTree): void {
+    this.currentTree.set(story);
+    this.selectedNodeId.set(story.rootNodeId || Object.keys(story.nodes)[0] || '');
+    this.saveToStorage(story);
+  }
+
   private saveToStorage(tree: StoryTree): void {
     try {
+      const payload: StoryTree = {
+        ...tree,
+        loreBible: this.loreBible(),
+        styleConfig: this.styleConfig()
+      };
+
       if (typeof window !== 'undefined' && window.localStorage) {
-        const payload: StoryTree = {
-          ...tree,
-          loreBible: this.loreBible(),
-          styleConfig: this.styleConfig()
-        };
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      }
+
+      // Auto-sync to Supabase PostgreSQL when user is authenticated
+      if (this.supabase.isAuthenticated()) {
+        if (this.cloudSyncDebounceTimer) {
+          clearTimeout(this.cloudSyncDebounceTimer);
+        }
+        this.cloudSyncDebounceTimer = setTimeout(() => {
+          this.supabase.syncStoryToCloud(payload).catch(() => {});
+        }, 1500);
       }
     } catch {
       // Ignore
