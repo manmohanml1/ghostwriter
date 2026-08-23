@@ -3,7 +3,7 @@ import { AppEnvironment } from './environment.interface';
 export const environment: AppEnvironment = {
   production: true,
   name: 'stage',
-  version: '0.5.0-preview',
+  version: '0.5.2-stage',
   appTitle: 'Ghostwriter Studio (Staging Preview)',
   supabase: {
     url: 'https://wuzasgwsyyukhhrwehau.supabase.co',

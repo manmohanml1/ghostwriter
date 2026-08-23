@@ -105,28 +105,49 @@ import { TreeStore } from '../../core/state/tree.store';
             @if (authMode() === 'CUSTOM_SUPABASE') {
               <!-- Custom Supabase Project Settings -->
               <div class="custom-backend-form">
-                <p class="text-xs text-slate-300 mb-2">
-                  Connect your own private Supabase instance or local Docker container:
-                </p>
-                <div class="form-group">
-                  <label class="form-label">Supabase Project URL</label>
+                <div class="custom-backend-banner">
+                  <span class="text-base">⚙️</span>
+                  <div>
+                    <span class="text-xs font-bold text-purple-200">Self-Hosted / Private Supabase Instance</span>
+                    <p class="text-xxs text-slate-400 mt-0.5">
+                      Connect your own private Supabase instance or local Docker container. Ghostwriter uses its default cloud backend automatically unless custom credentials are saved below.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="form-group mt-3">
+                  <label class="form-label">Custom Supabase Project URL</label>
                   <input 
                     type="text" 
                     [(ngModel)]="customUrl" 
-                    placeholder="https://xyzcompany.supabase.co" 
+                    placeholder="https://your-project.supabase.co (or http://localhost:54321)" 
                     class="auth-input"
                   />
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Anon / Public API Key</label>
+                  <label class="form-label">Custom Anon / Public API Key</label>
                   <input 
                     type="password" 
                     [(ngModel)]="customKey" 
-                    placeholder="eyJhbGciOi..." 
+                    placeholder="eyJhbGciOi... or sb_publishable_..." 
                     class="auth-input"
                   />
                 </div>
-                <button class="btn-primary mt-2" (click)="saveCustomBackend()">Save Custom Backend</button>
+
+                @if (statusMessage()) {
+                  <p class="status-msg" [class.error]="isError()">{{ statusMessage() }}</p>
+                }
+
+                <div class="flex items-center gap-2 mt-3">
+                  <button class="btn-submit flex-1" (click)="saveCustomBackend()">
+                    💾 Save Custom Backend
+                  </button>
+                  @if (supabase.hasCustomConfig()) {
+                    <button class="btn-reset-backend" (click)="resetCustomBackend()" title="Revert to Default Cloud Backend">
+                      ↺ Reset
+                    </button>
+                  }
+                </div>
               </div>
             } @else {
               <!-- OAuth Providers -->
@@ -563,6 +584,34 @@ import { TreeStore } from '../../core/state/tree.store';
       box-shadow: 0 4px 20px rgba(168, 85, 247, 0.5);
     }
 
+    .custom-backend-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: rgba(168, 85, 247, 0.1);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .btn-reset-backend {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-reset-backend:hover {
+      background: #334155;
+      color: #f8fafc;
+    }
+
     .modal-footer {
       border-top: 1px solid #1e293b;
       padding-top: 12px;
@@ -594,8 +643,8 @@ export class AuthModalComponent {
   authMode = signal<'SIGNIN' | 'SIGNUP' | 'CUSTOM_SUPABASE'>('SIGNIN');
   emailInput = '';
   passwordInput = '';
-  customUrl = this.supabase.getSupabaseUrl();
-  customKey = this.supabase.getSupabaseKey();
+  customUrl = this.supabase.getCustomSupabaseUrl();
+  customKey = this.supabase.getCustomSupabaseKey();
 
   isSubmitting = signal<boolean>(false);
   statusMessage = signal<string>('');
@@ -679,8 +728,21 @@ export class AuthModalComponent {
   }
 
   saveCustomBackend(): void {
+    if (!this.customUrl || !this.customKey) {
+      this.statusMessage.set('Please enter both Supabase URL and API Key to configure custom backend.');
+      this.isError.set(true);
+      return;
+    }
     this.supabase.setCustomConfig(this.customUrl, this.customKey);
-    this.statusMessage.set('Custom Supabase backend configured!');
+    this.statusMessage.set('Custom Supabase backend configured and active!');
+    this.isError.set(false);
+  }
+
+  resetCustomBackend(): void {
+    this.supabase.clearCustomConfig();
+    this.customUrl = '';
+    this.customKey = '';
+    this.statusMessage.set('Reverted to Ghostwriter Default Cloud backend!');
     this.isError.set(false);
   }
 }

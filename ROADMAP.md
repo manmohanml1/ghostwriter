@@ -47,6 +47,11 @@ This document tracks the phased development and release plan for **Ghostwriter**
   - Persistent mobile navigation toolbar and slide-over menu drawer.
   - Automated native end-to-end regression test suite running pre-build & in CI.
 
+- [x] **v0.5.2 (Security Hardening & Protected Endpoint Configuration)**:
+  - Protected Custom Backend inputs with clean placeholders and no pre-population.
+  - 1-Click reset to default cloud backend.
+  - Upgraded custom backend glassmorphism action styling.
+
 - [ ] **v0.6.0 (Public Story Showcase & Standalone Web Player)**:
   - 1-Click "Publish Story" generating shareable URLs (`/story/:slug`).
   - Standalone reader player for mobile readers with branch choices.

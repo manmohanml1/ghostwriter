@@ -91,10 +91,37 @@ export class SupabaseService {
     );
   }
 
+  hasCustomConfig(): boolean {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = window.localStorage.getItem(SUPABASE_URL_STORAGE);
+      return Boolean(stored && stored.trim());
+    }
+    return false;
+  }
+
+  getCustomSupabaseUrl(): string {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(SUPABASE_URL_STORAGE) || '';
+    }
+    return '';
+  }
+
+  getCustomSupabaseKey(): string {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(SUPABASE_KEY_STORAGE) || '';
+    }
+    return '';
+  }
+
   setCustomConfig(url: string, key: string): void {
     if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(SUPABASE_URL_STORAGE, url.trim());
-      window.localStorage.setItem(SUPABASE_KEY_STORAGE, key.trim());
+      if (url.trim() && key.trim()) {
+        window.localStorage.setItem(SUPABASE_URL_STORAGE, url.trim());
+        window.localStorage.setItem(SUPABASE_KEY_STORAGE, key.trim());
+      } else {
+        window.localStorage.removeItem(SUPABASE_URL_STORAGE);
+        window.localStorage.removeItem(SUPABASE_KEY_STORAGE);
+      }
       this.initClient();
     }
   }
