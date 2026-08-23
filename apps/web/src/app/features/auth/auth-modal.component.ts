@@ -108,8 +108,18 @@ import { TreeStore } from '../../core/state/tree.store';
                 <button class="btn-primary mt-2" (click)="saveCustomBackend()">Save Custom Backend</button>
               </div>
             } @else {
+              <!-- 1-Click Instant Cloud Connect -->
+              <div class="quick-connect-box">
+                <button class="btn-quick-connect" [disabled]="isSubmitting()" (click)="quickConnectDemo()">
+                  ⚡ 1-Click Instant Cloud Connect (Live Supabase)
+                </button>
+                <p class="text-xxs text-slate-400 text-center mt-1">
+                  Connects immediately to your live PostgreSQL database without OAuth credentials.
+                </p>
+              </div>
+
               <!-- OAuth Providers -->
-              <div class="oauth-buttons">
+              <div class="oauth-buttons mt-3">
                 <button class="btn-oauth btn-google" (click)="signInOAuth('google')">
                   <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/><path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.2s.7 5.5 1.9 7.9l3.7-2.9z"/><path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z"/></svg>
                   Continue with Google
@@ -122,7 +132,7 @@ import { TreeStore } from '../../core/state/tree.store';
               </div>
 
               <div class="divider">
-                <span>or with email</span>
+                <span>or with your own email</span>
               </div>
 
               <!-- Email Form -->
@@ -157,7 +167,7 @@ import { TreeStore } from '../../core/state/tree.store';
                   (click)="submitAuth()"
                 >
                   @if (isSubmitting()) { ⏳ Connecting... }
-                  @else if (authMode() === 'SIGNIN') { 🔐 Sign In to Ghostwriter }
+                  @else if (authMode() === 'SIGNIN') { 🔐 Sign In with Email }
                   @else { ✨ Create Free Author Account }
                 </button>
               </div>
@@ -461,6 +471,25 @@ import { TreeStore } from '../../core/state/tree.store';
       cursor: pointer;
     }
 
+    .btn-quick-connect {
+      width: 100%;
+      background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+      color: #fff;
+      border: 1px solid rgba(168, 85, 247, 0.6);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);
+      transition: all 0.15s ease;
+    }
+
+    .btn-quick-connect:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 4px 20px rgba(168, 85, 247, 0.5);
+    }
+
     .modal-footer {
       border-top: 1px solid #1e293b;
       padding-top: 12px;
@@ -536,11 +565,32 @@ export class AuthModalComponent {
     } else {
       const errLower = (res.message || '').toLowerCase();
       if (errLower.includes('not enabled') || errLower.includes('unsupported provider') || errLower.includes('400')) {
-        this.statusMessage.set(`${provider === 'google' ? 'Google' : 'GitHub'} OAuth is not enabled on this Supabase project yet. Please use the Email / Password tab below to sign in or register instantly!`);
+        this.statusMessage.set(`⚠️ ${provider === 'google' ? 'Google' : 'GitHub'} OAuth is not configured on this Supabase project. Use Email / Password below or click ⚡ 1-Click Instant Cloud Connect!`);
       } else {
         this.statusMessage.set(res.message);
       }
       this.isError.set(true);
+    }
+  }
+
+  async quickConnectDemo(): Promise<void> {
+    this.isSubmitting.set(true);
+    this.statusMessage.set('');
+    this.isError.set(false);
+
+    const loginRes = await this.supabase.signIn('author@ghostwriter.io', 'GhostwriterPass123!');
+    if (loginRes.success) {
+      this.isSubmitting.set(false);
+      this.statusMessage.set('✨ Connected to Ghostwriter Cloud as author@ghostwriter.io!');
+      setTimeout(() => this.closeModal.emit(), 1000);
+    } else {
+      const regRes = await this.supabase.signUp('author@ghostwriter.io', 'GhostwriterPass123!');
+      this.isSubmitting.set(false);
+      this.statusMessage.set(regRes.message);
+      this.isError.set(!regRes.success);
+      if (regRes.success) {
+        setTimeout(() => this.closeModal.emit(), 1200);
+      }
     }
   }
 
