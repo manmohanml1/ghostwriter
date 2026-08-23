@@ -523,10 +523,24 @@ export class AuthModalComponent {
   }
 
   async signInOAuth(provider: 'google' | 'github'): Promise<void> {
+    this.statusMessage.set('');
+    this.isError.set(false);
+    this.isSubmitting.set(true);
+
     const res = await this.supabase.signInWithOAuth(provider);
-    this.statusMessage.set(res.message);
+    this.isSubmitting.set(false);
+
     if (res.success) {
+      this.statusMessage.set(res.message);
       setTimeout(() => this.closeModal.emit(), 1000);
+    } else {
+      const errLower = (res.message || '').toLowerCase();
+      if (errLower.includes('not enabled') || errLower.includes('unsupported provider') || errLower.includes('400')) {
+        this.statusMessage.set(`${provider === 'google' ? 'Google' : 'GitHub'} OAuth is not enabled on this Supabase project yet. Please use the Email / Password tab below to sign in or register instantly!`);
+      } else {
+        this.statusMessage.set(res.message);
+      }
+      this.isError.set(true);
     }
   }
 

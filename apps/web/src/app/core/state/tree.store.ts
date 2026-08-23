@@ -480,6 +480,58 @@ export class TreeStore {
     this.saveToStorage(updatedTree);
   }
 
+  createNewStory(title = 'Untitled Story', genre: StoryStyleConfig['genre'] = 'Cyberpunk', premise = 'Begin writing your opening scene here...'): void {
+    const storyId = 'story-' + Date.now();
+    const rootNodeId = 'node-' + Math.random().toString(36).substring(2, 9);
+
+    const rootNode: TreeNode = {
+      id: rootNodeId,
+      treeId: storyId,
+      parentNodeId: null,
+      title: 'Chapter 1: The Beginning',
+      content: premise,
+      authorType: 'HUMAN',
+      status: 'CANON_PATH',
+      coherenceScore: 100,
+      depth: 0,
+      wordCount: premise.split(/\s+/).filter(Boolean).length,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const newTree: StoryTree = {
+      id: storyId,
+      title,
+      description: 'An original branching webnovel created with Ghostwriter.',
+      genre,
+      rootNodeId,
+      nodes: {
+        [rootNodeId]: rootNode
+      },
+      edges: [],
+      loreBible: [],
+      styleConfig: {
+        genre,
+        pacing: 'Balanced',
+        tone: 'Gritty & Dark',
+        dialogueDensity: 'Balanced'
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      version: 1
+    };
+
+    this.currentTree.set(newTree);
+    this.selectedNodeId.set(rootNodeId);
+    this.saveToStorage(newTree);
+  }
+
+  resetToDemoStory(): void {
+    this.currentTree.set(NARRATIVE_STORY_TREE);
+    this.selectedNodeId.set(NARRATIVE_STORY_TREE.rootNodeId);
+    this.saveToStorage(NARRATIVE_STORY_TREE);
+  }
+
   addLoreEntity(entity: Omit<LoreEntity, 'id'>): void {
     const newEntity: LoreEntity = {
       ...entity,
