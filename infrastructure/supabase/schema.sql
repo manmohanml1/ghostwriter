@@ -83,6 +83,26 @@ CREATE POLICY "Anyone can view nodes of public stories" ON public.tree_nodes
         EXISTS (SELECT 1 FROM public.stories WHERE id = tree_nodes.story_id AND is_public = TRUE)
     );
 
+CREATE POLICY "Users can manage edges of own stories" ON public.tree_edges
+    FOR ALL USING (
+        EXISTS (SELECT 1 FROM public.stories WHERE id = tree_edges.story_id AND user_id = auth.uid())
+    );
+
+CREATE POLICY "Anyone can view edges of public stories" ON public.tree_edges
+    FOR SELECT USING (
+        EXISTS (SELECT 1 FROM public.stories WHERE id = tree_edges.story_id AND is_public = TRUE)
+    );
+
+CREATE POLICY "Users can manage lore of own stories" ON public.lore_entities
+    FOR ALL USING (
+        EXISTS (SELECT 1 FROM public.stories WHERE id = lore_entities.story_id AND user_id = auth.uid())
+    );
+
+CREATE POLICY "Anyone can view lore of public stories" ON public.lore_entities
+    FOR SELECT USING (
+        EXISTS (SELECT 1 FROM public.stories WHERE id = lore_entities.story_id AND is_public = TRUE)
+    );
+
 -- Indexes for lightning fast traversal
 CREATE INDEX IF NOT EXISTS idx_tree_nodes_story_id ON public.tree_nodes(story_id);
 CREATE INDEX IF NOT EXISTS idx_tree_nodes_parent ON public.tree_nodes(parent_node_id);

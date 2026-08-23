@@ -48,7 +48,7 @@ import { TreeStore } from '../../core/state/tree.store';
               <button class="btn-sync-now" (click)="manualSync()">
                 ☁️ Sync Current Story to Cloud
               </button>
-              <button class="btn-signout" (click)="supabase.signOut()">
+              <button class="btn-signout" (click)="handleSignOut()">
                 🚪 Sign Out
               </button>
             </div>
@@ -571,6 +571,13 @@ export class AuthModalComponent {
     this.isSubmitting.set(false);
     this.statusMessage.set(res.message);
     this.isError.set(!res.success);
+  }
+
+  async handleSignOut(): Promise<void> {
+    await this.supabase.signOut();
+    this.store.resetToDemoStory();
+    this.statusMessage.set('Signed out successfully.');
+    setTimeout(() => this.closeModal.emit(), 600);
   }
 
   saveCustomBackend(): void {
