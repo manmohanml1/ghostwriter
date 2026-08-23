@@ -165,6 +165,85 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
         </button>
       </div>
     </header>
+
+    <!-- Sleek In-App Modal: Create New Story -->
+    @if (showNewStoryModal()) {
+      <div class="custom-modal-backdrop" (click)="showNewStoryModal.set(false)">
+        <div class="custom-modal-card" (click)="$event.stopPropagation()">
+          <div class="custom-modal-header">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">✨</span>
+              <div>
+                <h3 class="custom-modal-title">Create New Story</h3>
+                <p class="custom-modal-subtitle">Start a fresh branching narrative universe.</p>
+              </div>
+            </div>
+            <button class="btn-modal-close" (click)="showNewStoryModal.set(false)">✕</button>
+          </div>
+
+          <div class="custom-modal-body">
+            <div class="form-field">
+              <label class="field-label">Story Title</label>
+              <input 
+                type="text" 
+                class="field-input" 
+                [(ngModel)]="newStoryTitle" 
+                placeholder="e.g. The Quantum Cipher"
+              />
+            </div>
+
+            <div class="form-field">
+              <label class="field-label">Genre</label>
+              <select class="field-select" [(ngModel)]="newStoryGenre">
+                <option value="Cyberpunk">Cyberpunk Noir</option>
+                <option value="Sci-Fi">Hard Sci-Fi / Space Opera</option>
+                <option value="Dark Fantasy">Dark Fantasy</option>
+                <option value="Mystery">Mystery / Thriller</option>
+                <option value="LitRPG">LitRPG / Progression Fantasy</option>
+                <option value="Romance">Urban Romance</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="custom-modal-footer">
+            <button class="btn-cancel" (click)="showNewStoryModal.set(false)">Cancel</button>
+            <button class="btn-primary" (click)="confirmCreateNewStory()">✨ Create Story</button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Sleek In-App Modal: Reset to Demo Story -->
+    @if (showResetDemoModal()) {
+      <div class="custom-modal-backdrop" (click)="showResetDemoModal.set(false)">
+        <div class="custom-modal-card" (click)="$event.stopPropagation()">
+          <div class="custom-modal-header">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🌆</span>
+              <div>
+                <h3 class="custom-modal-title">Reset to Cyberpunk Demo?</h3>
+                <p class="custom-modal-subtitle">Reload starter story: <i>The Neon Protocol</i>.</p>
+              </div>
+            </div>
+            <button class="btn-modal-close" (click)="showResetDemoModal.set(false)">✕</button>
+          </div>
+
+          <div class="custom-modal-body">
+            <div class="warning-box">
+              <span class="warning-tag">⚠️ Warning</span>
+              <p class="warning-text">
+                Your active workspace draft will be replaced with the starter Cyberpunk demo. Make sure any personal work is synced to your cloud account first.
+              </p>
+            </div>
+          </div>
+
+          <div class="custom-modal-footer">
+            <button class="btn-cancel" (click)="showResetDemoModal.set(false)">Cancel</button>
+            <button class="btn-danger" (click)="confirmResetToDemo()">🌆 Confirm Reset</button>
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: [`
     .app-header {
@@ -522,6 +601,152 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
       .brand-text { max-width: 120px; }
       .story-title-text { max-width: 100px; }
     }
+
+    /* Custom In-App Modal Dialogs */
+    .custom-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: fadeIn 0.15s ease-out;
+    }
+
+    .custom-modal-card {
+      background: #0f172a;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      border-radius: 14px;
+      padding: 20px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(168, 85, 247, 0.2);
+    }
+
+    .custom-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 12px;
+    }
+
+    .custom-modal-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .custom-modal-subtitle {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .btn-modal-close {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .custom-modal-body {
+      padding: 14px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #cbd5e1;
+    }
+
+    .field-input, .field-select {
+      background: #070a12;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .field-input:focus, .field-select:focus {
+      border-color: #a855f7;
+    }
+
+    .warning-box {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .warning-tag {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fbbf24;
+    }
+
+    .warning-text {
+      font-size: 11px;
+      color: #e2e8f0;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .custom-modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      border-top: 1px solid #1e293b;
+      padding-top: 14px;
+    }
+
+    .btn-cancel {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      color: #fff;
+      border: none;
+      padding: 7px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(168, 85, 247, 0.35);
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+      border: none;
+      padding: 7px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
   `]
 })
 export class HeaderComponent {
@@ -535,6 +760,11 @@ export class HeaderComponent {
 
   readonly showExportMenu = signal<boolean>(false);
   readonly showStoryMenu = signal<boolean>(false);
+  readonly showNewStoryModal = signal<boolean>(false);
+  readonly showResetDemoModal = signal<boolean>(false);
+
+  newStoryTitle = 'The Quantum Cipher';
+  newStoryGenre = 'Cyberpunk';
 
   toggleExportMenu(): void {
     this.showExportMenu.update(v => !v);
@@ -547,18 +777,25 @@ export class HeaderComponent {
   }
 
   startNewStoryPrompt(): void {
-    const title = prompt('Enter story title:', 'My New Webnovel');
-    if (title && title.trim()) {
-      this.store.createNewStory(title.trim());
-    }
     this.showStoryMenu.set(false);
+    this.showNewStoryModal.set(true);
+  }
+
+  confirmCreateNewStory(): void {
+    if (this.newStoryTitle.trim()) {
+      this.store.createNewStory(this.newStoryTitle.trim());
+      this.showNewStoryModal.set(false);
+    }
   }
 
   resetToDemo(): void {
-    if (confirm('Load the starter Cyberpunk demo story? (Active draft will be replaced)')) {
-      this.store.resetToDemoStory();
-    }
     this.showStoryMenu.set(false);
+    this.showResetDemoModal.set(true);
+  }
+
+  confirmResetToDemo(): void {
+    this.store.resetToDemoStory();
+    this.showResetDemoModal.set(false);
   }
 
   async loadCloudStory(id: string): Promise<void> {

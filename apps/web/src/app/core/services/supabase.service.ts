@@ -300,7 +300,7 @@ export class SupabaseService {
     this.syncErrorMessage.set(null);
 
     try {
-      const storyUUID = toUUID(tree.id);
+      const storyUUID = toUUID(`${user.id}:${tree.id}`);
 
       // 1. Upsert Story Header
       const { error: storyErr } = await this.client.from('stories').upsert({
@@ -318,9 +318,9 @@ export class SupabaseService {
       const nodeArray = Object.values(tree.nodes || {});
       if (nodeArray.length > 0) {
         const nodePayloads = nodeArray.map(n => ({
-          id: toUUID(n.id),
+          id: toUUID(`${storyUUID}:${n.id}`),
           story_id: storyUUID,
-          parent_node_id: n.parentNodeId ? toUUID(n.parentNodeId) : null,
+          parent_node_id: n.parentNodeId ? toUUID(`${storyUUID}:${n.parentNodeId}`) : null,
           title: n.title,
           content: n.content,
           author_type: n.authorType || 'HUMAN',
@@ -340,10 +340,10 @@ export class SupabaseService {
       // 3. Upsert Edges
       if (tree.edges && tree.edges.length > 0) {
         const edgePayloads = tree.edges.map(e => ({
-          id: toUUID(e.id || `${e.sourceNodeId}->${e.targetNodeId}`),
+          id: toUUID(`${storyUUID}:${e.id || `${e.sourceNodeId}->${e.targetNodeId}`}`),
           story_id: storyUUID,
-          source_node_id: toUUID(e.sourceNodeId),
-          target_node_id: toUUID(e.targetNodeId),
+          source_node_id: toUUID(`${storyUUID}:${e.sourceNodeId}`),
+          target_node_id: toUUID(`${storyUUID}:${e.targetNodeId}`),
           edge_type: e.edgeType || 'BRANCH',
           label: e.label || null
         }));
@@ -355,7 +355,7 @@ export class SupabaseService {
       // 4. Upsert Lore Entities
       if (tree.loreBible && tree.loreBible.length > 0) {
         const lorePayloads = tree.loreBible.map(l => ({
-          id: toUUID(l.id || l.name),
+          id: toUUID(`${storyUUID}:${l.id || l.name}`),
           story_id: storyUUID,
           name: l.name,
           category: l.category || 'CHARACTER',

@@ -165,6 +165,18 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
                 </div>
               </div>
 
+              @if (store.activeChildren().length > 0) {
+                <div class="parent-branch-warning-banner mb-2">
+                  <div class="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
+                    <span>⚠️</span>
+                    <span>Parent Chapter ({{ store.activeChildren().length }} Child Branches)</span>
+                  </div>
+                  <p class="text-xxs text-amber-200 mt-0.5">
+                    Modifying this root prose may create narrative divergence with downstream paths.
+                  </p>
+                </div>
+              }
+
               @if (store.canUndoAI()) {
                 <div class="undo-banner mb-2">
                   <span class="undo-text">✨ AI writing generated. Review or revert anytime:</span>
@@ -314,6 +326,41 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
           }
         </div>
       </aside>
+    }
+
+    <!-- Divergence Confirmation Modal -->
+    @if (showExpandWarningModal()) {
+      <div class="custom-modal-backdrop" (click)="showExpandWarningModal.set(false)">
+        <div class="custom-modal-card" (click)="$event.stopPropagation()">
+          <div class="custom-modal-header">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">⚠️</span>
+              <div>
+                <h3 class="custom-modal-title">Modify Active Parent Chapter?</h3>
+                <p class="custom-modal-subtitle">This node has {{ store.activeChildren().length }} child branch(es).</p>
+              </div>
+            </div>
+            <button class="btn-modal-close" (click)="showExpandWarningModal.set(false)">✕</button>
+          </div>
+
+          <div class="custom-modal-body">
+            <div class="warning-box">
+              <span class="warning-tag">⚠️ Continuity & Divergence Notice</span>
+              <p class="warning-text">
+                Expanding or rewriting this root chapter will alter the narrative context for its <b>{{ store.activeChildren().length }}</b> existing downstream branches.
+              </p>
+              <p class="warning-text mt-2">
+                Child branches will remain connected, but their setup may diverge from the rewritten text. You can also use <b>↺ Undo AI Write</b> to restore previous text at any time.
+              </p>
+            </div>
+          </div>
+
+          <div class="custom-modal-footer">
+            <button class="btn-cancel" (click)="showExpandWarningModal.set(false)">Cancel</button>
+            <button class="btn-primary" (click)="proceedWithExpand()">⚡ Proceed with AI Expand</button>
+          </div>
+        </div>
+      </div>
     }
   `,
   styles: [`
@@ -506,6 +553,14 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
       height: 100%;
       background: linear-gradient(90deg, #6366f1 0%, #a855f7 100%);
       transition: width 0.3s ease;
+    }
+
+    .parent-branch-warning-banner {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 8px;
+      padding: 8px 12px;
+      animation: fadeIn 0.2s ease-out;
     }
 
     .undo-banner {
@@ -943,6 +998,100 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
       line-height: 1.35;
     }
 
+    /* Modal Styles */
+    .custom-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: fadeIn 0.15s ease-out;
+    }
+
+    .custom-modal-card {
+      background: #0f172a;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      border-radius: 14px;
+      padding: 20px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(168, 85, 247, 0.2);
+    }
+
+    .custom-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 12px;
+    }
+
+    .custom-modal-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .custom-modal-subtitle {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .btn-modal-close {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .custom-modal-body {
+      padding: 14px 0;
+    }
+
+    .warning-box {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .warning-tag {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fbbf24;
+    }
+
+    .warning-text {
+      font-size: 11px;
+      color: #e2e8f0;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .custom-modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      border-top: 1px solid #1e293b;
+      padding-top: 14px;
+    }
+
+    .btn-cancel {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
     @media (max-width: 1024px) {
       .inspector-panel {
         position: fixed;
@@ -972,6 +1121,7 @@ export class NodeInspectorComponent {
 
   readonly activeTab = signal<InspectorTab>('EDITOR');
   readonly showNewBranchForm = signal<boolean>(false);
+  readonly showExpandWarningModal = signal<boolean>(false);
   selectedBeatFocus: ChapterBeatFocus = 'BALANCED';
 
   newBranchTitle = '';
@@ -993,6 +1143,15 @@ export class NodeInspectorComponent {
   }
 
   expandChapter(): void {
+    if (this.store.activeChildren().length > 0) {
+      this.showExpandWarningModal.set(true);
+    } else {
+      this.proceedWithExpand();
+    }
+  }
+
+  proceedWithExpand(): void {
+    this.showExpandWarningModal.set(false);
     this.store.expandActiveChapter({
       targetLength: 'FULL_CHAPTER',
       focusBeat: this.selectedBeatFocus
