@@ -12,140 +12,123 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
   imports: [CommonModule, FormsModule, StyleControlsComponent],
   template: `
     <header class="app-header">
-      <!-- Left: Brand & Story Switcher -->
-      <div class="brand-group">
-        <div class="logo-icon">✍️</div>
-        <div class="brand-text">
-          <div class="flex items-center gap-2">
-            <h1 class="brand-title">Ghostwriter</h1>
-            <span class="version-badge">v0.5.0</span>
+      <!-- Left: Logo & Story Selector -->
+      <div class="brand-container">
+        <div class="logo-badge" (click)="toggleStoryMenu()" title="Manage Stories">
+          ✍️
+        </div>
+        <div class="brand-info">
+          <div class="brand-title-row">
+            <span class="brand-name">Ghostwriter</span>
+            <span class="version-pill">v0.5.0</span>
           </div>
-          <p class="brand-subtitle" [title]="store.currentTree().title">{{ store.currentTree().title }}</p>
+          <button class="story-title-btn" (click)="toggleStoryMenu()" title="Click to switch story">
+            <span class="story-name">{{ store.currentTree().title }}</span>
+            <span class="dropdown-arrow">▾</span>
+          </button>
         </div>
 
-        <!-- Story Management Dropdown -->
-        <div class="story-actions-wrapper">
-          <button class="btn-story-action" (click)="toggleStoryMenu()" title="New Story or Switch Draft">
-            📁 Story ▾
-          </button>
+        <!-- Story Menu Dropdown -->
+        @if (showStoryMenu()) {
+          <div class="story-dropdown-menu" (click)="$event.stopPropagation()">
+            <div class="dropdown-header">Story Workspace</div>
+            <button class="dropdown-action-btn primary" (click)="startNewStoryPrompt()">
+              <span>✨</span> + New Story from Scratch
+            </button>
+            <button class="dropdown-action-btn" (click)="resetToDemo()">
+              <span>🌆</span> Reset to Cyberpunk Demo
+            </button>
 
-          @if (showStoryMenu()) {
-            <div class="story-menu">
-              <button class="story-menu-item" (click)="startNewStoryPrompt()">
-                <span class="menu-icon">✨</span>
-                <div>
-                  <div class="menu-title">+ New Story from Scratch</div>
-                  <div class="menu-desc">Blank canvas for an original novel</div>
-                </div>
-              </button>
-
-              <button class="story-menu-item" (click)="resetToDemo()">
-                <span class="menu-icon">🌆</span>
-                <div>
-                  <div class="menu-title">Load Cyberpunk Demo</div>
-                  <div class="menu-desc">Starter branching narrative tree</div>
-                </div>
-              </button>
-
-              @if (supabase.userCloudStories().length > 0) {
-                <div class="menu-divider"><span>Cloud Stories</span></div>
-                @for (cloudStory of supabase.userCloudStories(); track cloudStory.id) {
-                  <button class="story-menu-item" (click)="loadCloudStoryById(cloudStory.id)">
-                    <span class="menu-icon">☁️</span>
-                    <div>
-                      <div class="menu-title">{{ cloudStory.title }}</div>
-                      <div class="menu-desc">{{ cloudStory.genre }} • {{ cloudStory.updatedAt }}</div>
-                    </div>
-                  </button>
-                }
+            @if (supabase.userCloudStories().length > 0) {
+              <div class="dropdown-divider">Saved in Cloud</div>
+              @for (story of supabase.userCloudStories(); track story.id) {
+                <button class="dropdown-story-item" (click)="loadCloudStory(story.id)">
+                  <span class="cloud-icon">☁️</span>
+                  <div class="story-meta">
+                    <span class="item-title">{{ story.title }}</span>
+                    <span class="item-sub">{{ story.genre }} • {{ story.updatedAt }}</span>
+                  </div>
+                </button>
               }
-            </div>
-          }
-        </div>
+            }
+          </div>
+        }
       </div>
 
-      <!-- Center: View Mode & Style Controls -->
-      <div class="center-controls">
-        <div class="view-mode-toggle">
-          <button 
-            class="btn-mode" 
-            [class.active]="store.activeViewMode() === 'CANVAS'"
-            (click)="store.setViewMode('CANVAS')"
-          >
-            🎨 Canvas
-          </button>
-          <button 
-            class="btn-mode" 
-            [class.active]="store.activeViewMode() === 'READER'"
-            (click)="store.setViewMode('READER')"
-          >
-            📖 Reader
-          </button>
-        </div>
-
-        <div class="style-controls-wrapper">
-          <app-style-controls />
-        </div>
-      </div>
-
-      <!-- Right: AI Status, Cloud Account & Export Suite -->
-      <div class="header-actions">
-        <!-- Cloud Sync & User Account Pill -->
+      <!-- Center: View Mode (Canvas vs Reader) -->
+      <div class="view-mode-pill">
         <button 
-          class="btn-cloud-account" 
-          [class.authenticated]="supabase.isAuthenticated()"
-          (click)="openAuthEvent.emit()"
-          title="Account & Cloud Sync"
+          class="mode-btn" 
+          [class.active]="store.activeViewMode() === 'CANVAS'"
+          (click)="store.setViewMode('CANVAS')"
         >
-          @if (supabase.isAuthenticated()) {
-            <span class="cloud-dot online"></span>
-            <span class="user-label truncate-text">{{ supabase.currentUser()?.email?.split('@')?.[0] }}</span>
-          } @else {
-            <span class="cloud-dot offline"></span>
-            <span class="user-label">☁️ Cloud</span>
-          }
+          🎨 <span class="mode-label">Canvas</span>
+        </button>
+        <button 
+          class="mode-btn" 
+          [class.active]="store.activeViewMode() === 'READER'"
+          (click)="store.setViewMode('READER')"
+        >
+          📖 <span class="mode-label">Reader</span>
+        </button>
+      </div>
+
+      <!-- Desktop Style Controls -->
+      <div class="desktop-style-controls">
+        <app-style-controls />
+      </div>
+
+      <!-- Right: Desktop Actions -->
+      <div class="desktop-actions">
+        <!-- Cloud Sync -->
+        <button 
+          class="action-btn cloud-btn" 
+          [class.active]="supabase.isAuthenticated()"
+          (click)="openAuthEvent.emit()"
+          title="Supabase Cloud Sync"
+        >
+          <span class="dot" [class.online]="supabase.isAuthenticated()"></span>
+          <span>{{ supabase.isAuthenticated() ? (supabase.currentUser()?.email?.split('@')?.[0] || 'Cloud') : '☁️ Cloud' }}</span>
         </button>
 
-        <!-- Live AI Health Status Pill -->
+        <!-- AI Health -->
         <div 
-          class="ai-status-pill"
+          class="ai-telemetry-badge"
           [attr.data-provider]="aiService.telemetry().activeProvider"
           (click)="openSettingsEvent.emit()"
-          title="Click to view AI Provider & Key Settings"
+          title="AI Provider Settings"
         >
-          <span class="status-dot"></span>
-          <span class="status-text">
-            @if (aiService.telemetry().activeProvider === 'GEMINI') { ✨ Gemini }
-            @else if (aiService.telemetry().activeProvider === 'GROQ') { ⚡ Groq }
-            @else { 💾 Offline }
+          <span class="ai-dot"></span>
+          <span>
+            @if (aiService.telemetry().activeProvider === 'GEMINI') { Gemini Flash }
+            @else if (aiService.telemetry().activeProvider === 'GROQ') { Groq 70B }
+            @else { Offline }
           </span>
         </div>
 
-        <button class="btn-settings" (click)="openSettingsEvent.emit()" title="Configure Gemini & Groq Keys">
-          ⚙️ Keys
+        <button class="action-btn icon-only" (click)="openSettingsEvent.emit()" title="AI Keys">
+          ⚙️
         </button>
 
         <!-- Export Dropdown -->
-        <div class="export-dropdown-wrapper">
-          <button class="btn-export" (click)="toggleExportMenu()" title="Export Story">
+        <div class="export-container">
+          <button class="action-btn" (click)="toggleExportMenu()" title="Export">
             📥 Export ▾
           </button>
-
           @if (showExportMenu()) {
-            <div class="export-menu">
-              <button class="export-menu-item" (click)="downloadNovelManuscript()">
-                <span class="item-icon">📖</span>
+            <div class="export-dropdown" (click)="$event.stopPropagation()">
+              <button class="export-btn" (click)="downloadNovelManuscript()">
+                <span>📖</span>
                 <div>
-                  <div class="item-title">Novel Manuscript (.md)</div>
-                  <div class="item-desc">Clean book text of the active storyline</div>
+                  <div class="exp-title">Novel Manuscript (.md)</div>
+                  <div class="exp-desc">Linear chapter prose</div>
                 </div>
               </button>
-
-              <button class="export-menu-item" (click)="downloadTreeJson()">
-                <span class="item-icon">💾</span>
+              <button class="export-btn" (click)="downloadTreeJson()">
+                <span>💾</span>
                 <div>
-                  <div class="item-title">Story Tree Backup (.json)</div>
-                  <div class="item-desc">Complete DAG graph & Lore Bible</div>
+                  <div class="exp-title">Story Tree (.json)</div>
+                  <div class="exp-desc">Full DAG & Lore Bible</div>
                 </div>
               </button>
             </div>
@@ -154,41 +137,111 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
 
         @if (store.activeViewMode() === 'CANVAS') {
           <button 
-            class="btn-toggle-inspector" 
+            class="action-btn inspector-toggle-btn" 
             [class.active]="store.isInspectorOpen()"
             (click)="store.toggleInspector()" 
             title="Toggle Inspector"
           >
-            📋
+            📋 Editor
           </button>
         }
       </div>
+
+      <!-- Mobile Right Controls (< 820px) -->
+      <div class="mobile-actions">
+        @if (store.activeViewMode() === 'CANVAS') {
+          <button 
+            class="mobile-action-btn" 
+            [class.active]="store.isInspectorOpen()"
+            (click)="store.toggleInspector()" 
+            title="Toggle Chapter Editor"
+          >
+            ✍️ Edit
+          </button>
+        }
+
+        <button class="mobile-action-btn menu-btn" (click)="showMobileMenu.set(true)" title="Menu">
+          ☰
+        </button>
+      </div>
+
+      <!-- Mobile Slide-Over Drawer -->
+      @if (showMobileMenu()) {
+        <div class="mobile-drawer-backdrop" (click)="showMobileMenu.set(false)">
+          <div class="mobile-drawer" (click)="$event.stopPropagation()">
+            <div class="drawer-header">
+              <span class="font-bold text-sm text-white">Ghostwriter Menu</span>
+              <button class="btn-drawer-close" (click)="showMobileMenu.set(false)">✕</button>
+            </div>
+
+            <div class="drawer-content">
+              <!-- Story Management -->
+              <div class="drawer-section">
+                <span class="drawer-section-title">Story Workspace</span>
+                <button class="drawer-item-btn" (click)="startNewStoryPrompt(); showMobileMenu.set(false)">
+                  <span>✨</span> + New Story from Scratch
+                </button>
+                <button class="drawer-item-btn" (click)="resetToDemo(); showMobileMenu.set(false)">
+                  <span>🌆</span> Load Cyberpunk Demo
+                </button>
+              </div>
+
+              <!-- Style Controls -->
+              <div class="drawer-section">
+                <span class="drawer-section-title">Genre & Style Controls</span>
+                <app-style-controls />
+              </div>
+
+              <!-- Cloud & AI -->
+              <div class="drawer-section">
+                <span class="drawer-section-title">Cloud & AI Settings</span>
+                <button class="drawer-item-btn" (click)="openAuthEvent.emit(); showMobileMenu.set(false)">
+                  <span>☁️</span> {{ supabase.isAuthenticated() ? 'Manage Account (' + supabase.currentUser()?.email + ')' : 'Connect Supabase Cloud' }}
+                </button>
+                <button class="drawer-item-btn" (click)="openSettingsEvent.emit(); showMobileMenu.set(false)">
+                  <span>⚙️</span> Configure AI Keys (Gemini / Groq)
+                </button>
+              </div>
+
+              <!-- Export -->
+              <div class="drawer-section">
+                <span class="drawer-section-title">Export Options</span>
+                <button class="drawer-item-btn" (click)="downloadNovelManuscript(); showMobileMenu.set(false)">
+                  <span>📖</span> Export Novel Manuscript (.md)
+                </button>
+                <button class="drawer-item-btn" (click)="downloadTreeJson(); showMobileMenu.set(false)">
+                  <span>💾</span> Export Story Tree Backup (.json)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
     </header>
   `,
   styles: [`
     .app-header {
-      height: 60px;
-      background: rgba(15, 23, 42, 0.95);
-      border-bottom: 1px solid rgba(51, 65, 85, 0.8);
+      height: 56px;
+      background: #0f172a;
+      border-bottom: 1px solid #1e293b;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 14px;
+      padding: 0 12px;
       z-index: 50;
       position: relative;
-      gap: 10px;
-      overflow-x: auto;
-      overflow-y: visible;
+      gap: 8px;
     }
 
-    .brand-group {
+    /* Left Brand */
+    .brand-container {
       display: flex;
       align-items: center;
       gap: 8px;
-      flex-shrink: 0;
+      position: relative;
     }
 
-    .logo-icon {
+    .logo-badge {
       width: 32px;
       height: 32px;
       border-radius: 8px;
@@ -196,35 +249,32 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 16px;
-      box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.35);
       flex-shrink: 0;
     }
 
-    .brand-text {
+    .brand-info {
       display: flex;
       flex-direction: column;
-      max-width: 140px;
+      max-width: 160px;
     }
 
-    .brand-title {
-      font-size: 14px;
+    .brand-title-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .brand-name {
+      font-size: 13px;
       font-weight: 800;
       color: #f8fafc;
       letter-spacing: -0.02em;
-      margin: 0;
     }
 
-    .brand-subtitle {
-      font-size: 10px;
-      color: #94a3b8;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      margin: 0;
-    }
-
-    .version-badge {
+    .version-pill {
       font-size: 9px;
       font-weight: 700;
       font-family: 'JetBrains Mono', monospace;
@@ -232,47 +282,98 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
       background: rgba(168, 85, 247, 0.15);
       padding: 0 4px;
       border-radius: 3px;
-      border: 1px solid rgba(168, 85, 247, 0.3);
     }
 
-    .story-actions-wrapper {
-      position: relative;
-    }
-
-    .btn-story-action {
-      background: #1e293b;
-      border: 1px solid #334155;
-      color: #cbd5e1;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 600;
+    .story-title-btn {
+      background: transparent;
+      border: none;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      gap: 3px;
       cursor: pointer;
+      color: #94a3b8;
+      font-size: 10px;
+      text-align: left;
+    }
+
+    .story-title-btn:hover {
+      color: #c084fc;
+    }
+
+    .story-name {
+      max-width: 130px;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .btn-story-action:hover {
-      background: #334155;
-      color: #fff;
+    .dropdown-arrow {
+      font-size: 9px;
     }
 
-    .story-menu {
+    /* Story Dropdown Menu */
+    .story-dropdown-menu {
       position: absolute;
-      top: 36px;
+      top: 44px;
       left: 0;
       background: #0f172a;
       border: 1px solid rgba(168, 85, 247, 0.4);
-      border-radius: 10px;
-      padding: 6px;
-      width: 250px;
-      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.8);
+      border-radius: 12px;
+      padding: 8px;
+      width: 260px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9);
       display: flex;
       flex-direction: column;
       gap: 4px;
-      z-index: 999;
+      z-index: 1000;
     }
 
-    .story-menu-item {
+    .dropdown-header {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 4px 8px;
+    }
+
+    .dropdown-action-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 8px 10px;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .dropdown-action-btn.primary {
+      background: rgba(124, 58, 237, 0.2);
+      border-color: rgba(168, 85, 247, 0.4);
+      color: #e9d5ff;
+    }
+
+    .dropdown-action-btn:hover {
+      background: #334155;
+    }
+
+    .dropdown-divider {
+      font-size: 9px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      padding: 6px 8px 2px;
+      border-top: 1px solid #1e293b;
+      margin-top: 4px;
+    }
+
+    .dropdown-story-item {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -284,35 +385,30 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
       text-align: left;
     }
 
-    .story-menu-item:hover {
+    .dropdown-story-item:hover {
       background: #1e293b;
     }
 
-    .menu-icon { font-size: 16px; }
-    .menu-title { font-size: 11px; font-weight: 700; color: #f8fafc; }
-    .menu-desc { font-size: 9px; color: #94a3b8; }
+    .story-meta {
+      display: flex;
+      flex-direction: column;
+    }
 
-    .menu-divider {
-      padding: 4px 8px 2px;
-      font-size: 9px;
+    .item-title {
+      font-size: 11px;
       font-weight: 700;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      border-top: 1px solid #1e293b;
-      margin-top: 2px;
+      color: #f8fafc;
     }
 
-    .center-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 1;
+    .item-sub {
+      font-size: 9px;
+      color: #94a3b8;
     }
 
-    .view-mode-toggle {
+    /* Center View Mode */
+    .view-mode-pill {
       display: flex;
-      background: #0b1120;
+      background: #070a12;
       padding: 2px;
       border-radius: 8px;
       border: 1px solid #1e293b;
@@ -320,77 +416,92 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
       flex-shrink: 0;
     }
 
-    .btn-mode {
+    .mode-btn {
       background: transparent;
       border: none;
       color: #94a3b8;
       font-size: 11px;
       font-weight: 600;
-      padding: 4px 8px;
+      padding: 5px 10px;
       border-radius: 6px;
       cursor: pointer;
-      transition: all 0.15s ease;
-      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    .btn-mode:hover { color: #f8fafc; }
-    .btn-mode.active {
+    .mode-btn.active {
       background: #7c3aed;
       color: #fff;
       box-shadow: 0 2px 6px rgba(124, 58, 237, 0.4);
     }
 
-    .header-actions {
+    /* Desktop Controls */
+    .desktop-style-controls {
+      display: flex;
+      align-items: center;
+    }
+
+    .desktop-actions {
       display: flex;
       align-items: center;
       gap: 6px;
-      position: relative;
-      flex-shrink: 0;
     }
 
-    .btn-cloud-account {
-      display: flex;
-      align-items: center;
-      gap: 5px;
+    .action-btn {
       background: #1e293b;
       border: 1px solid #334155;
       color: #e2e8f0;
-      padding: 5px 8px;
+      padding: 5px 9px;
       border-radius: 6px;
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
       white-space: nowrap;
     }
 
-    .btn-cloud-account:hover { background: #334155; }
-    .btn-cloud-account.authenticated {
+    .action-btn:hover {
+      background: #334155;
+      color: #fff;
+    }
+
+    .action-btn.icon-only {
+      padding: 5px 7px;
+    }
+
+    .action-btn.inspector-toggle-btn.active {
+      background: rgba(168, 85, 247, 0.2);
+      border-color: #a855f7;
+      color: #e9d5ff;
+    }
+
+    .cloud-btn.active {
       background: rgba(99, 102, 241, 0.15);
       border-color: rgba(99, 102, 241, 0.4);
       color: #c7d2fe;
     }
 
-    .cloud-dot {
+    .dot {
       width: 6px;
       height: 6px;
       border-radius: 50%;
+      background: #94a3b8;
     }
 
-    .cloud-dot.online { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
-    .cloud-dot.offline { background: #94a3b8; }
-
-    .truncate-text {
-      max-width: 70px;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .dot.online {
+      background: #4ade80;
+      box-shadow: 0 0 6px #4ade80;
     }
 
-    .ai-status-pill {
+    .ai-telemetry-badge {
       display: flex;
       align-items: center;
       gap: 5px;
       padding: 4px 8px;
-      border-radius: 14px;
+      border-radius: 12px;
       font-size: 10px;
       font-weight: 600;
       cursor: pointer;
@@ -399,57 +510,36 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
       white-space: nowrap;
     }
 
-    .ai-status-pill[data-provider="GEMINI"] {
+    .ai-telemetry-badge[data-provider="GEMINI"] {
       background: rgba(99, 102, 241, 0.15);
       border-color: rgba(99, 102, 241, 0.4);
       color: #c7d2fe;
     }
 
-    .ai-status-pill[data-provider="GROQ"] {
+    .ai-telemetry-badge[data-provider="GROQ"] {
       background: rgba(234, 179, 8, 0.15);
       border-color: rgba(234, 179, 8, 0.4);
       color: #fde047;
     }
 
-    .ai-status-pill[data-provider="OFFLINE"] {
+    .ai-telemetry-badge[data-provider="OFFLINE"] {
       background: rgba(168, 85, 247, 0.15);
       border-color: rgba(168, 85, 247, 0.4);
       color: #e9d5ff;
     }
 
-    .status-dot {
+    .ai-dot {
       width: 6px;
       height: 6px;
       border-radius: 50%;
       background: currentColor;
     }
 
-    .btn-settings, .btn-export, .btn-toggle-inspector {
-      background: #1e293b;
-      color: #e2e8f0;
-      border: 1px solid #334155;
-      padding: 5px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
+    .export-container {
+      position: relative;
     }
 
-    .btn-settings:hover, .btn-export:hover, .btn-toggle-inspector:hover {
-      background: #334155;
-      color: #fff;
-    }
-
-    .btn-toggle-inspector.active {
-      background: rgba(168, 85, 247, 0.2);
-      border-color: #a855f7;
-      color: #e9d5ff;
-    }
-
-    .export-dropdown-wrapper { position: relative; }
-
-    .export-menu {
+    .export-dropdown {
       position: absolute;
       top: 36px;
       right: 0;
@@ -458,14 +548,14 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
       border-radius: 10px;
       padding: 6px;
       width: 240px;
-      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.8);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.9);
       display: flex;
       flex-direction: column;
       gap: 4px;
-      z-index: 999;
+      z-index: 1000;
     }
 
-    .export-menu-item {
+    .export-btn {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -477,13 +567,129 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
       text-align: left;
     }
 
-    .export-menu-item:hover { background: #1e293b; }
-    .item-icon { font-size: 16px; }
-    .item-title { font-size: 11px; font-weight: 700; color: #f8fafc; }
-    .item-desc { font-size: 9px; color: #94a3b8; }
+    .export-btn:hover { background: #1e293b; }
+    .exp-title { font-size: 11px; font-weight: 700; color: #f8fafc; }
+    .exp-desc { font-size: 9px; color: #94a3b8; }
 
-    @media (max-width: 1100px) {
-      .style-controls-wrapper { display: none; }
+    /* Mobile Controls */
+    .mobile-actions {
+      display: none;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mobile-action-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .mobile-action-btn.active {
+      background: #7c3aed;
+      border-color: #a855f7;
+    }
+
+    .mobile-action-btn.menu-btn {
+      font-size: 15px;
+      padding: 4px 8px;
+    }
+
+    /* Mobile Drawer */
+    .mobile-drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      z-index: 99999;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .mobile-drawer {
+      width: 320px;
+      max-width: 85vw;
+      height: 100%;
+      background: #0f172a;
+      border-left: 1px solid #334155;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 12px;
+    }
+
+    .btn-drawer-close {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .drawer-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .drawer-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .drawer-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .drawer-item-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .drawer-item-btn:hover { background: #334155; }
+
+    /* Media Queries */
+    @media (max-width: 1024px) {
+      .desktop-style-controls { display: none; }
+    }
+
+    @media (max-width: 820px) {
+      .desktop-actions { display: none; }
+      .mobile-actions { display: flex; }
+      .brand-info { max-width: 110px; }
+      .story-name { max-width: 90px; }
+      .mode-label { display: none; }
     }
   `]
 })
@@ -497,6 +703,7 @@ export class HeaderComponent {
 
   readonly showExportMenu = signal<boolean>(false);
   readonly showStoryMenu = signal<boolean>(false);
+  readonly showMobileMenu = signal<boolean>(false);
 
   toggleExportMenu(): void {
     this.showExportMenu.update(v => !v);
@@ -517,13 +724,13 @@ export class HeaderComponent {
   }
 
   resetToDemo(): void {
-    if (confirm('Load the starter Cyberpunk demo story? (Your active draft will be replaced with the demo)')) {
+    if (confirm('Load the starter Cyberpunk demo story? (Active draft will be replaced)')) {
       this.store.resetToDemoStory();
     }
     this.showStoryMenu.set(false);
   }
 
-  async loadCloudStoryById(id: string): Promise<void> {
+  async loadCloudStory(id: string): Promise<void> {
     const cloudStory = await this.supabase.loadStoryFromCloud(id);
     if (cloudStory) {
       this.store.loadCloudStory(cloudStory);

@@ -873,6 +873,28 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
       color: #64748b;
       line-height: 1.35;
     }
+
+    @media (max-width: 768px) {
+      .inspector-panel {
+        position: fixed;
+        top: 56px;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100vw;
+        max-width: 100vw;
+        z-index: 100;
+        border-left: none;
+        border-top: 1px solid rgba(168, 85, 247, 0.4);
+      }
+
+      .inspector-panel.collapsed {
+        transform: translateY(100%);
+        width: 100vw;
+        opacity: 0;
+        pointer-events: none;
+      }
+    }
   `]
 })
 export class NodeInspectorComponent {
