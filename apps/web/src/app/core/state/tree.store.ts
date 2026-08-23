@@ -271,7 +271,8 @@ export class TreeStore {
       suggestion.title,
       suggestion.content,
       'AGENT',
-      suggestion.persona
+      suggestion.persona,
+      false
     );
     this.activeAiSuggestions.update(list => list.filter(s => s.title !== suggestion.title));
     return createdNode;
@@ -280,7 +281,7 @@ export class TreeStore {
   applyAllAISuggestions(parentNodeId: string): void {
     const suggestions = this.activeAiSuggestions();
     suggestions.forEach(s => {
-      this.addBranch(parentNodeId, s.title, s.content, 'AGENT', s.persona);
+      this.addBranch(parentNodeId, s.title, s.content, 'AGENT', s.persona, false);
     });
     this.activeAiSuggestions.set([]);
   }
@@ -290,7 +291,8 @@ export class TreeStore {
     title: string,
     content: string,
     authorType: AuthorType = 'HUMAN',
-    agentPersona?: string
+    agentPersona?: string,
+    selectCreatedNode: boolean = true
   ): TreeNode {
     const tree = this.currentTree();
     const parent = tree.nodes[parentNodeId];
@@ -342,7 +344,9 @@ export class TreeStore {
     };
 
     this.currentTree.set(updatedTree);
-    this.selectedNodeId.set(newNodeId);
+    if (selectCreatedNode) {
+      this.selectedNodeId.set(newNodeId);
+    }
     this.saveToStorage(updatedTree);
 
     return newNode;
