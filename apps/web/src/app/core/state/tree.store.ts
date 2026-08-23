@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, signal, computed, inject, effect } from '@angular/core';
 import { StoryTree, TreeNode, TreeEdge, AuthorType, ViewMode, ReaderTheme, LoreEntity, StoryStyleConfig, AIBranchSuggestion, ChapterGenerationOptions } from '../models/graph.models';
 import { NARRATIVE_STORY_TREE, ARCHITECTURE_DECISION_TREE } from '../fixtures/starter-trees';
 import { AIGeneratorService } from '../services/ai-generator.service';
@@ -130,7 +130,15 @@ export class TreeStore {
     }, 0);
   });
 
-  constructor() {}
+  constructor() {
+    effect(() => {
+      const isAuth = this.supabase.isAuthenticated();
+      if (isAuth && this.supabase.isCloudConfigured()) {
+        // Automatically sync current story on login
+        this.saveToStorage(this.currentTree());
+      }
+    });
+  }
 
   selectNode(nodeId: string): void {
     if (this.currentTree().nodes[nodeId]) {

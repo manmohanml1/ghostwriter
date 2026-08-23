@@ -3,6 +3,30 @@ import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { StoryTree, TreeNode, TreeEdge, LoreEntity } from '../models/graph.models';
 import { environment } from '../../../environments/environment';
 
+export function toUUID(str: string): string {
+  if (!str) return '00000000-0000-4000-8000-000000000000';
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(str)) return str;
+
+  // Create 32 hex characters deterministically from string
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  
+  const p1 = (h1 >>> 0).toString(16).padStart(8, '0');
+  const p2 = (h2 >>> 0).toString(16).padStart(8, '0');
+  const p3 = ((h1 ^ h2) >>> 0).toString(16).padStart(8, '0');
+  const p4 = ((h1 + h2) >>> 0).toString(16).padStart(8, '0');
+  
+  const full = (p1 + p2 + p3 + p4).slice(0, 32);
+  return `${full.slice(0, 8)}-${full.slice(8, 12)}-4${full.slice(13, 16)}-a${full.slice(17, 20)}-${full.slice(20, 32)}`;
+}
+
 const SUPABASE_URL_STORAGE = 'ghostwriter_supabase_url';
 const SUPABASE_KEY_STORAGE = 'ghostwriter_supabase_anon_key';
 
@@ -262,7 +286,7 @@ export class SupabaseService {
       this.syncStatus.set('LOCAL_SANDBOX');
       return {
         success: false,
-        message: 'Saved locally in IndexedDB. (Connect Supabase in Cloud Sync for multi-device sync)'
+        message: 'Saved locally in browser storage. Connect Supabase to sync across devices.'
       };
     }
 
@@ -276,9 +300,11 @@ export class SupabaseService {
     this.syncErrorMessage.set(null);
 
     try {
+      const storyUUID = toUUID(tree.id);
+
       // 1. Upsert Story Header
       const { error: storyErr } = await this.client.from('stories').upsert({
-        id: tree.id,
+        id: storyUUID,
         user_id: user.id,
         title: tree.title,
         description: tree.description || '',
@@ -292,9 +318,9 @@ export class SupabaseService {
       const nodeArray = Object.values(tree.nodes || {});
       if (nodeArray.length > 0) {
         const nodePayloads = nodeArray.map(n => ({
-          id: n.id,
-          story_id: tree.id,
-          parent_node_id: n.parentNodeId || null,
+          id: toUUID(n.id),
+          story_id: storyUUID,
+          parent_node_id: n.parentNodeId ? toUUID(n.parentNodeId) : null,
           title: n.title,
           content: n.content,
           author_type: n.authorType || 'HUMAN',
@@ -314,10 +340,10 @@ export class SupabaseService {
       // 3. Upsert Edges
       if (tree.edges && tree.edges.length > 0) {
         const edgePayloads = tree.edges.map(e => ({
-          id: e.id,
-          story_id: tree.id,
-          source_node_id: e.sourceNodeId,
-          target_node_id: e.targetNodeId,
+          id: toUUID(e.id || `${e.sourceNodeId}->${e.targetNodeId}`),
+          story_id: storyUUID,
+          source_node_id: toUUID(e.sourceNodeId),
+          target_node_id: toUUID(e.targetNodeId),
           edge_type: e.edgeType || 'BRANCH',
           label: e.label || null
         }));
@@ -329,11 +355,11 @@ export class SupabaseService {
       // 4. Upsert Lore Entities
       if (tree.loreBible && tree.loreBible.length > 0) {
         const lorePayloads = tree.loreBible.map(l => ({
-          id: l.id,
-          story_id: tree.id,
+          id: toUUID(l.id || l.name),
+          story_id: storyUUID,
           name: l.name,
-          category: l.category,
-          description: l.description,
+          category: l.category || 'CHARACTER',
+          description: l.description || '',
           traits: l.traits || []
         }));
 
@@ -345,7 +371,7 @@ export class SupabaseService {
       this.lastSyncTime.set(new Date().toLocaleTimeString());
       await this.fetchUserStories();
 
-      return { success: true, message: 'Story successfully synced to PostgreSQL Cloud!' };
+      return { success: true, message: '✨ Story successfully synced to PostgreSQL Cloud!' };
     } catch (err: any) {
       console.error('Real Cloud Sync failed:', err);
       this.syncStatus.set('SYNC_ERROR');
@@ -361,18 +387,19 @@ export class SupabaseService {
     if (!this.client || !this.isCloudConfigured()) return null;
 
     try {
+      const uuid = toUUID(storyId);
       const { data: story, error: sErr } = await this.client
         .from('stories')
         .select('*')
-        .eq('id', storyId)
+        .eq('id', uuid)
         .single();
 
       if (sErr || !story) return null;
 
       const [nodesRes, edgesRes, loreRes] = await Promise.all([
-        this.client.from('tree_nodes').select('*').eq('story_id', storyId).order('depth', { ascending: true }),
-        this.client.from('tree_edges').select('*').eq('story_id', storyId),
-        this.client.from('lore_entities').select('*').eq('story_id', storyId)
+        this.client.from('tree_nodes').select('*').eq('story_id', uuid).order('depth', { ascending: true }),
+        this.client.from('tree_edges').select('*').eq('story_id', uuid),
+        this.client.from('lore_entities').select('*').eq('story_id', uuid)
       ]);
 
       const nodeRecord: Record<string, TreeNode> = {};

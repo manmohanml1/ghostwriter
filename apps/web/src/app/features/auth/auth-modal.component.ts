@@ -563,30 +563,14 @@ export class AuthModalComponent {
     }
   }
 
-  async quickConnectDemo(): Promise<void> {
+  async manualSync(): Promise<void> {
     this.isSubmitting.set(true);
     this.statusMessage.set('');
     this.isError.set(false);
-
-    const loginRes = await this.supabase.signIn('author@ghostwriter.io', 'GhostwriterPass123!');
-    if (loginRes.success) {
-      this.isSubmitting.set(false);
-      this.statusMessage.set('✨ Connected to Ghostwriter Cloud as author@ghostwriter.io!');
-      setTimeout(() => this.closeModal.emit(), 1000);
-    } else {
-      const regRes = await this.supabase.signUp('author@ghostwriter.io', 'GhostwriterPass123!');
-      this.isSubmitting.set(false);
-      this.statusMessage.set(regRes.message);
-      this.isError.set(!regRes.success);
-      if (regRes.success) {
-        setTimeout(() => this.closeModal.emit(), 1200);
-      }
-    }
-  }
-
-  async manualSync(): Promise<void> {
     const res = await this.supabase.syncStoryToCloud(this.store.currentTree());
-    alert(res.message);
+    this.isSubmitting.set(false);
+    this.statusMessage.set(res.message);
+    this.isError.set(!res.success);
   }
 
   saveCustomBackend(): void {
