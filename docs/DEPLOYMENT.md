@@ -100,7 +100,25 @@ Ghostwriter enforces an automated 3-layer security lockdown ensuring no code ent
 Every commit and deployment must follow this sequence:
 1. **Local Regression Suite**: Run `npm test` locally (13 tests must pass).
 2. **Local Production Build**: Run `npm run build` locally (must exit with code 0).
-3. **Staging Preview**: Deploy feature branch via `npx vercel --yes` for staging smoke testing.
+3. **Staging Preview**: Deploy feature branch via `npx vercel --yes` for staging smoke testing (required for code/UI changes; skipped for doc-only updates).
 4. **Pull Request**: Open PR targeting `master` on GitHub.
-5. **Merge & Tag**: Merge via GitHub, switch to `master`, pull, tag `vX.Y.Z`, and promote to production via `npx vercel --prod --yes`.
+5. **Merge & Tag**: Merge via GitHub, switch to `master`, pull, tag `vX.Y.Z` (if application code changed), and promote to production via `npx vercel --prod --yes`.
+
+---
+
+## 6. Vercel Deployment Trigger vs. Doc-Only Skip Policy
+
+To prevent wasted build minutes, redundant deployments, and clutter in the Vercel dashboard, deployments are strictly gated by change classification:
+
+| Change Category | Target Files & Paths | Pull Request Required? | Vercel Deployment Required? | Release Version Bump? |
+|---|---|:---:|:---:|:---:|
+| **App Code / Features / Fixes** | `apps/web/src/**`, `apps/web/package.json` | ✅ **YES** | ✅ **YES** (Preview & Production) | ✅ **YES** (`vX.Y.Z`) |
+| **Documentation / ADRs / Markdown** | `docs/**`, `*.md` | ✅ **YES** | ❌ **NO (Skip)** | ❌ **NO (Skip)** |
+| **CI Workflows / Tooling / Scripts** | `.github/**`, `scripts/**` | ✅ **YES** | ❌ **NO (Skip)** | ❌ **NO (Skip)** |
+
+### Governance Rules for Doc-Only Changes:
+1. **Always use a Pull Request**: All documentation and markdown changes must go through a feature branch (`docs/...`) and be merged into `master` via GitHub PR to honor repository rulesets and branch protection.
+2. **Skip Vercel Deployments**: Do NOT invoke `npx vercel` (staging preview or production) when changes are confined entirely to documentation or internal configuration.
+3. **Skip Release Version Bumps**: Documentation PRs do not represent new software builds and do not require version bumps in `package.json` or Git release tags.
+
 

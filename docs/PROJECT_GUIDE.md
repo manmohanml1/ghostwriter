@@ -90,8 +90,16 @@ Branches must strictly use one of the following standard semantic prefixes:
 > 1. Create and push topic branch: `git checkout -b <prefix>/<name>`
 > 2. Implement changes and run `npm run build` verification
 > 3. Open Pull Request with completed `.github/pull_request_template.md`
-> 4. Present the PR link, Vercel Preview URL, and verification evidence to the repository owner
-> 5. **STOP AND WAIT**: Merge the PR and deploy to production *only* after the owner explicitly says `"merge"`.
+> 4. Present the PR link and verification evidence to the repository owner
+> 5. **STOP AND WAIT**: Merge the PR and promote to production *only* after the owner explicitly says `"merge"`.
+
+### E. Doc-Only and Non-Deployment Changes Policy
+> [!NOTE]
+> **Documentation, Markdown, and CI workflow changes do NOT require Vercel deployments or release version bumps.**
+>
+> - **Code/UI Changes (`apps/web/src/**`)**: Require local regression tests, staging preview deployment, PR review, production deployment upon merge, and release tag.
+> - **Doc-Only Changes (`docs/**`, `*.md`, `.github/**`)**: Require PR and CI passing; skip Vercel deployments and skip version bumps.
+
 
 ---
 
