@@ -141,8 +141,18 @@ export class TreeStore {
     effect(() => {
       const isAuth = this.supabase.isAuthenticated();
       if (isAuth && this.supabase.isCloudConfigured()) {
-        // Automatically sync current story on login
-        this.saveToStorage(this.currentTree());
+        const stories = this.supabase.userCloudStories();
+        if (stories && stories.length > 0) {
+          const currentId = this.currentTree().id;
+          const matchingStory = stories.find(s => s.id === currentId);
+          if (!matchingStory) {
+            this.supabase.loadStoryFromCloud(stories[0].id).then(cloudTree => {
+              if (cloudTree) {
+                this.loadCloudStory(cloudTree);
+              }
+            }).catch(() => {});
+          }
+        }
       }
     });
   }
