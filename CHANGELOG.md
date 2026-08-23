@@ -4,6 +4,20 @@ All notable changes to **Ghostwriter** are documented in this file in accordance
 
 ---
 
+## [0.5.1] - 2026-08-23
+
+### Added
+- **1-Click AI Undo Snapshot**: Automatically records pre-generation chapter state with dedicated `[↺ Restore Previous Text]` action.
+- **Recursive Cascade Branch Pruning**: Pruning any parent chapter automatically cascade prunes all child and descendant branch subtrees.
+- **Parent Branch Divergence Safeguard**: Amber button highlights and confirmation modal with options to cascade prune or permanently delete downstream child branches upon root edits.
+- **In-Place Cloud Story Updates**: Deterministic UUID stability resolving duplicate database insertions during multi-session editing.
+- **Multi-Account PostgreSQL Cloud Isolation**: User-scoped deterministic UUIDs ensuring 50+ concurrent author accounts with zero primary key collisions.
+- **Story Switcher & Cloud Catalog**: Multi-story catalog in top navigation bar and cloud modal for 1-click project switching.
+- **Comprehensive Regression Suite**: 10 scenario tests covering graph DAG operations, cascade pruning, undo snapshots, and RFC-4122 UUID compliance running pre-build and in CI.
+- **Mobile Navigation Suite**: Persistent cloud indicator, editor quick toggle, and slide-over menu drawer for mobile viewports.
+
+---
+
 ## [0.5.0] - 2026-08-22
 
 ### Added

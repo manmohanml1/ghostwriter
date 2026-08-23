@@ -44,11 +44,32 @@ import { TreeStore } from '../../core/state/tree.store';
               <p class="last-sync-text">Last cloud snapshot: {{ supabase.lastSyncTime() }}</p>
             }
 
-            <div class="cloud-actions">
+            @if (supabase.userCloudStories().length > 0) {
+              <div class="user-stories-section mt-4">
+                <div class="section-heading mb-2">
+                  <span class="text-xs font-bold text-slate-300">📁 Your Saved Cloud Stories ({{ supabase.userCloudStories().length }}):</span>
+                </div>
+                <div class="cloud-stories-scroll">
+                  @for (story of supabase.userCloudStories(); track story.id) {
+                    <div class="cloud-story-row">
+                      <div class="story-info">
+                        <span class="story-name">{{ story.title }}</span>
+                        <span class="story-meta">{{ story.genre }} • Updated {{ story.updatedAt }}</span>
+                      </div>
+                      <button class="btn-load-story" (click)="openCloudStory(story.id)">
+                        📂 Open in Studio
+                      </button>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <div class="cloud-actions mt-4">
               <button class="btn-sync-now" (click)="manualSync()">
                 ☁️ Sync Current Story to Cloud
               </button>
-              <button class="btn-signout" (click)="supabase.signOut()">
+              <button class="btn-signout" (click)="handleSignOut()">
                 🚪 Sign Out
               </button>
             </div>
@@ -157,7 +178,7 @@ import { TreeStore } from '../../core/state/tree.store';
                   (click)="submitAuth()"
                 >
                   @if (isSubmitting()) { ⏳ Connecting... }
-                  @else if (authMode() === 'SIGNIN') { 🔐 Sign In to Ghostwriter }
+                  @else if (authMode() === 'SIGNIN') { 🔐 Sign In with Email }
                   @else { ✨ Create Free Author Account }
                 </button>
               </div>
@@ -433,6 +454,68 @@ import { TreeStore } from '../../core/state/tree.store';
       font-family: 'JetBrains Mono', monospace;
     }
 
+    .cloud-stories-scroll {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 180px;
+      overflow-y: auto;
+      background: #070a12;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 6px;
+    }
+
+    .cloud-story-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      padding: 8px 10px;
+      border-radius: 6px;
+    }
+
+    .story-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .story-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: #f8fafc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .story-meta {
+      font-size: 10px;
+      color: #94a3b8;
+    }
+
+    .btn-load-story {
+      background: #1e293b;
+      border: 1px solid rgba(168, 85, 247, 0.5);
+      color: #c084fc;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .btn-load-story:hover {
+      background: #7c3aed;
+      color: #fff;
+    }
+
     .cloud-actions {
       display: flex;
       flex-direction: column;
@@ -459,6 +542,25 @@ import { TreeStore } from '../../core/state/tree.store';
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
+    }
+
+    .btn-quick-connect {
+      width: 100%;
+      background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+      color: #fff;
+      border: 1px solid rgba(168, 85, 247, 0.6);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);
+      transition: all 0.15s ease;
+    }
+
+    .btn-quick-connect:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 4px 20px rgba(168, 85, 247, 0.5);
     }
 
     .modal-footer {
@@ -523,16 +625,57 @@ export class AuthModalComponent {
   }
 
   async signInOAuth(provider: 'google' | 'github'): Promise<void> {
+    this.statusMessage.set('');
+    this.isError.set(false);
+    this.isSubmitting.set(true);
+
     const res = await this.supabase.signInWithOAuth(provider);
-    this.statusMessage.set(res.message);
+    this.isSubmitting.set(false);
+
     if (res.success) {
+      this.statusMessage.set(res.message);
       setTimeout(() => this.closeModal.emit(), 1000);
+    } else {
+      const errLower = (res.message || '').toLowerCase();
+      if (errLower.includes('not enabled') || errLower.includes('unsupported provider') || errLower.includes('400')) {
+        this.statusMessage.set(`⚠️ ${provider === 'google' ? 'Google' : 'GitHub'} OAuth is not configured on this Supabase project. Use Email / Password below or click ⚡ 1-Click Instant Cloud Connect!`);
+      } else {
+        this.statusMessage.set(res.message);
+      }
+      this.isError.set(true);
     }
   }
 
   async manualSync(): Promise<void> {
+    this.isSubmitting.set(true);
+    this.statusMessage.set('');
+    this.isError.set(false);
     const res = await this.supabase.syncStoryToCloud(this.store.currentTree());
-    alert(res.message);
+    this.isSubmitting.set(false);
+    this.statusMessage.set(res.message);
+    this.isError.set(!res.success);
+  }
+
+  async openCloudStory(id: string): Promise<void> {
+    this.isSubmitting.set(true);
+    this.statusMessage.set('Loading story from PostgreSQL Cloud...');
+    const story = await this.supabase.loadStoryFromCloud(id);
+    this.isSubmitting.set(false);
+    if (story) {
+      this.store.loadCloudStory(story);
+      this.statusMessage.set(`Loaded "${story.title}"!`);
+      setTimeout(() => this.closeModal.emit(), 600);
+    } else {
+      this.statusMessage.set('Failed to load story from cloud.');
+      this.isError.set(true);
+    }
+  }
+
+  async handleSignOut(): Promise<void> {
+    await this.supabase.signOut();
+    this.store.resetToDemoStory();
+    this.statusMessage.set('Signed out successfully.');
+    setTimeout(() => this.closeModal.emit(), 600);
   }
 
   saveCustomBackend(): void {

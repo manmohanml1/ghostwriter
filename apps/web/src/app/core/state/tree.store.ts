@@ -1,7 +1,8 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, signal, computed, inject, effect } from '@angular/core';
 import { StoryTree, TreeNode, TreeEdge, AuthorType, ViewMode, ReaderTheme, LoreEntity, StoryStyleConfig, AIBranchSuggestion, ChapterGenerationOptions } from '../models/graph.models';
 import { NARRATIVE_STORY_TREE, ARCHITECTURE_DECISION_TREE } from '../fixtures/starter-trees';
 import { AIGeneratorService } from '../services/ai-generator.service';
+import { SupabaseService } from '../services/supabase.service';
 
 const STORAGE_KEY = 'ghostwriter_active_story_v1';
 const THEME_STORAGE_KEY = 'ghostwriter_reader_theme';
@@ -42,17 +43,20 @@ const DEFAULT_STYLE: StoryStyleConfig = {
 })
 export class TreeStore {
   private readonly aiService = inject(AIGeneratorService);
+  private readonly supabase = inject(SupabaseService);
+  private cloudSyncDebounceTimer: any = null;
 
   // Core Signals
   readonly currentTree = signal<StoryTree>(this.loadInitialTree());
   readonly selectedNodeId = signal<string>(this.currentTree().rootNodeId);
-  readonly isInspectorOpen = signal<boolean>(true);
+  readonly isInspectorOpen = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth > 820 : true);
   readonly zoomLevel = signal<number>(1.0);
   readonly activeViewMode = signal<ViewMode>('CANVAS');
   readonly showPrunedNodes = signal<boolean>(true);
   readonly isGeneratingAI = signal<boolean>(false);
   readonly isExpandingChapter = signal<boolean>(false);
   readonly activeAiSuggestions = signal<AIBranchSuggestion[]>([]);
+  readonly previousChapterContent = signal<{ nodeId: string; content: string; title: string } | null>(null);
 
   // Reader Settings
   readonly readerTheme = signal<ReaderTheme>(this.loadInitialTheme());
@@ -61,6 +65,12 @@ export class TreeStore {
   // Lore & Style Signals
   readonly loreBible = signal<LoreEntity[]>(this.currentTree().loreBible || DEFAULT_LORE);
   readonly styleConfig = signal<StoryStyleConfig>(this.currentTree().styleConfig || DEFAULT_STYLE);
+
+  readonly canUndoAI = computed<boolean>(() => {
+    const prev = this.previousChapterContent();
+    const active = this.selectedNode();
+    return prev !== null && active !== null && prev.nodeId === active.id;
+  });
 
   // Computeds
   readonly selectedNode = computed<TreeNode | null>(() => {
@@ -127,7 +137,25 @@ export class TreeStore {
     }, 0);
   });
 
-  constructor() {}
+  constructor() {
+    effect(() => {
+      const isAuth = this.supabase.isAuthenticated();
+      if (isAuth && this.supabase.isCloudConfigured()) {
+        const stories = this.supabase.userCloudStories();
+        if (stories && stories.length > 0) {
+          const currentId = this.currentTree().id;
+          const matchingStory = stories.find(s => s.id === currentId);
+          if (!matchingStory) {
+            this.supabase.loadStoryFromCloud(stories[0].id).then(cloudTree => {
+              if (cloudTree) {
+                this.loadCloudStory(cloudTree);
+              }
+            }).catch(() => {});
+          }
+        }
+      }
+    });
+  }
 
   selectNode(nodeId: string): void {
     if (this.currentTree().nodes[nodeId]) {
@@ -184,6 +212,13 @@ export class TreeStore {
     const active = this.selectedNode();
     if (!active) return;
 
+    // Save previous state for 1-click Undo
+    this.previousChapterContent.set({
+      nodeId: active.id,
+      content: active.content,
+      title: active.title
+    });
+
     this.isExpandingChapter.set(true);
     try {
       const result = await this.aiService.expandToFullChapter(
@@ -211,6 +246,13 @@ export class TreeStore {
     const active = this.selectedNode();
     if (!active) return;
 
+    // Save previous state for 1-click Undo
+    this.previousChapterContent.set({
+      nodeId: active.id,
+      content: active.content,
+      title: active.title
+    });
+
     this.isGeneratingAI.set(true);
     try {
       const addition = await this.aiService.continueNextParagraph(
@@ -231,6 +273,19 @@ export class TreeStore {
       console.error('Failed to append paragraph:', err);
     } finally {
       this.isGeneratingAI.set(false);
+    }
+  }
+
+  undoLastAIChange(): void {
+    const prev = this.previousChapterContent();
+    if (!prev) return;
+    const tree = this.currentTree();
+    if (tree.nodes[prev.nodeId]) {
+      this.updateNode(prev.nodeId, {
+        content: prev.content,
+        title: prev.title
+      });
+      this.previousChapterContent.set(null);
     }
   }
 
@@ -260,7 +315,8 @@ export class TreeStore {
       suggestion.title,
       suggestion.content,
       'AGENT',
-      suggestion.persona
+      suggestion.persona,
+      false
     );
     this.activeAiSuggestions.update(list => list.filter(s => s.title !== suggestion.title));
     return createdNode;
@@ -269,7 +325,7 @@ export class TreeStore {
   applyAllAISuggestions(parentNodeId: string): void {
     const suggestions = this.activeAiSuggestions();
     suggestions.forEach(s => {
-      this.addBranch(parentNodeId, s.title, s.content, 'AGENT', s.persona);
+      this.addBranch(parentNodeId, s.title, s.content, 'AGENT', s.persona, false);
     });
     this.activeAiSuggestions.set([]);
   }
@@ -279,7 +335,8 @@ export class TreeStore {
     title: string,
     content: string,
     authorType: AuthorType = 'HUMAN',
-    agentPersona?: string
+    agentPersona?: string,
+    selectCreatedNode: boolean = true
   ): TreeNode {
     const tree = this.currentTree();
     const parent = tree.nodes[parentNodeId];
@@ -331,7 +388,9 @@ export class TreeStore {
     };
 
     this.currentTree.set(updatedTree);
-    this.selectedNodeId.set(newNodeId);
+    if (selectCreatedNode) {
+      this.selectedNodeId.set(newNodeId);
+    }
     this.saveToStorage(updatedTree);
 
     return newNode;
@@ -369,22 +428,97 @@ export class TreeStore {
     this.saveToStorage(updatedTree);
   }
 
+  getAllDescendantIds(nodeId: string, tree: StoryTree = this.currentTree()): string[] {
+    const directChildren = Object.values(tree.nodes).filter(n => n.parentNodeId === nodeId);
+    const result: string[] = [];
+    for (const child of directChildren) {
+      result.push(child.id);
+      result.push(...this.getAllDescendantIds(child.id, tree));
+    }
+    return result;
+  }
+
   pruneNode(nodeId: string): void {
     const tree = this.currentTree();
     if (nodeId === tree.rootNodeId) return;
 
-    this.updateNode(nodeId, { status: 'PRUNED' });
-    if (this.selectedNodeId() === nodeId) {
-      const node = tree.nodes[nodeId];
-      if (node?.parentNodeId) {
-        this.selectedNodeId.set(node.parentNodeId);
+    // Recursively cascade prune node AND all descendant child branches
+    const descendantIds = this.getAllDescendantIds(nodeId, tree);
+    const allPruneIds = new Set([nodeId, ...descendantIds]);
+
+    const updatedNodes = { ...tree.nodes };
+    allPruneIds.forEach(id => {
+      if (updatedNodes[id]) {
+        updatedNodes[id] = { ...updatedNodes[id], status: 'PRUNED', updatedAt: new Date().toISOString() };
       }
+    });
+
+    const updatedTree: StoryTree = {
+      ...tree,
+      nodes: updatedNodes,
+      loreBible: this.loreBible(),
+      styleConfig: this.styleConfig(),
+      updatedAt: new Date().toISOString(),
+      version: tree.version + 1
+    };
+
+    this.currentTree.set(updatedTree);
+    if (allPruneIds.has(this.selectedNodeId())) {
+      const node = tree.nodes[nodeId];
+      this.selectedNodeId.set(node?.parentNodeId || tree.rootNodeId);
     }
+    this.saveToStorage(updatedTree);
   }
 
-  restorePrunedNode(nodeId: string): void {
-    this.updateNode(nodeId, { status: 'ACTIVE' });
-    this.selectedNodeId.set(nodeId);
+  pruneChildrenOf(nodeId: string): void {
+    const tree = this.currentTree();
+    const descendantIds = this.getAllDescendantIds(nodeId, tree);
+    if (descendantIds.length === 0) return;
+
+    const updatedNodes = { ...tree.nodes };
+    descendantIds.forEach(id => {
+      if (updatedNodes[id]) {
+        updatedNodes[id] = { ...updatedNodes[id], status: 'PRUNED', updatedAt: new Date().toISOString() };
+      }
+    });
+
+    const updatedTree: StoryTree = {
+      ...tree,
+      nodes: updatedNodes,
+      loreBible: this.loreBible(),
+      styleConfig: this.styleConfig(),
+      updatedAt: new Date().toISOString(),
+      version: tree.version + 1
+    };
+
+    this.currentTree.set(updatedTree);
+    this.saveToStorage(updatedTree);
+  }
+
+  deleteChildrenOf(nodeId: string): void {
+    const tree = this.currentTree();
+    const descendantIds = new Set(this.getAllDescendantIds(nodeId, tree));
+    if (descendantIds.size === 0) return;
+
+    const updatedNodes = { ...tree.nodes };
+    descendantIds.forEach(id => delete updatedNodes[id]);
+
+    const updatedEdges = tree.edges.filter(
+      e => !descendantIds.has(e.sourceNodeId) && !descendantIds.has(e.targetNodeId)
+    );
+
+    const updatedTree: StoryTree = {
+      ...tree,
+      nodes: updatedNodes,
+      edges: updatedEdges,
+      loreBible: this.loreBible(),
+      styleConfig: this.styleConfig(),
+      updatedAt: new Date().toISOString(),
+      version: tree.version + 1
+    };
+
+    this.currentTree.set(updatedTree);
+    this.saveToStorage(updatedTree);
   }
 
   permanentlyDeleteNode(nodeId: string): void {
@@ -477,6 +611,58 @@ export class TreeStore {
     this.saveToStorage(updatedTree);
   }
 
+  createNewStory(title = 'Untitled Story', genre: StoryStyleConfig['genre'] = 'Cyberpunk', premise = 'Begin writing your opening scene here...'): void {
+    const storyId = 'story-' + Date.now();
+    const rootNodeId = 'node-' + Math.random().toString(36).substring(2, 9);
+
+    const rootNode: TreeNode = {
+      id: rootNodeId,
+      treeId: storyId,
+      parentNodeId: null,
+      title: 'Chapter 1: The Beginning',
+      content: premise,
+      authorType: 'HUMAN',
+      status: 'CANON_PATH',
+      coherenceScore: 100,
+      depth: 0,
+      wordCount: premise.split(/\s+/).filter(Boolean).length,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const newTree: StoryTree = {
+      id: storyId,
+      title,
+      description: 'An original branching webnovel created with Ghostwriter.',
+      genre,
+      rootNodeId,
+      nodes: {
+        [rootNodeId]: rootNode
+      },
+      edges: [],
+      loreBible: [],
+      styleConfig: {
+        genre,
+        pacing: 'Balanced',
+        tone: 'Gritty & Dark',
+        dialogueDensity: 'Balanced'
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      version: 1
+    };
+
+    this.currentTree.set(newTree);
+    this.selectedNodeId.set(rootNodeId);
+    this.saveToStorage(newTree);
+  }
+
+  resetToDemoStory(): void {
+    this.currentTree.set(NARRATIVE_STORY_TREE);
+    this.selectedNodeId.set(NARRATIVE_STORY_TREE.rootNodeId);
+    this.saveToStorage(NARRATIVE_STORY_TREE);
+  }
+
   addLoreEntity(entity: Omit<LoreEntity, 'id'>): void {
     const newEntity: LoreEntity = {
       ...entity,
@@ -523,15 +709,32 @@ export class TreeStore {
     return JSON.stringify(fullTree, null, 2);
   }
 
+  loadCloudStory(story: StoryTree): void {
+    this.currentTree.set(story);
+    this.selectedNodeId.set(story.rootNodeId || Object.keys(story.nodes)[0] || '');
+    this.saveToStorage(story);
+  }
+
   private saveToStorage(tree: StoryTree): void {
     try {
+      const payload: StoryTree = {
+        ...tree,
+        loreBible: this.loreBible(),
+        styleConfig: this.styleConfig()
+      };
+
       if (typeof window !== 'undefined' && window.localStorage) {
-        const payload: StoryTree = {
-          ...tree,
-          loreBible: this.loreBible(),
-          styleConfig: this.styleConfig()
-        };
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      }
+
+      // Auto-sync to Supabase PostgreSQL when user is authenticated
+      if (this.supabase.isAuthenticated()) {
+        if (this.cloudSyncDebounceTimer) {
+          clearTimeout(this.cloudSyncDebounceTimer);
+        }
+        this.cloudSyncDebounceTimer = setTimeout(() => {
+          this.supabase.syncStoryToCloud(payload).catch(() => {});
+        }, 1500);
       }
     } catch {
       // Ignore

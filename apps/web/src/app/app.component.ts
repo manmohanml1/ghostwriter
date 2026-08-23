@@ -6,6 +6,7 @@ import { TreeCanvasComponent } from './features/canvas/tree-canvas.component';
 import { NodeInspectorComponent } from './features/inspector/node-inspector.component';
 import { StoryReaderComponent } from './features/reader/story-reader.component';
 import { AuthModalComponent } from './features/auth/auth-modal.component';
+import { StyleControlsComponent } from './features/style-controls/style-controls.component';
 import { TreeStore } from './core/state/tree.store';
 import { AIGeneratorService } from './core/services/ai-generator.service';
 import { SupabaseService } from './core/services/supabase.service';
@@ -21,13 +22,15 @@ import { AIProviderType } from './core/models/graph.models';
     TreeCanvasComponent, 
     NodeInspectorComponent, 
     StoryReaderComponent,
-    AuthModalComponent
+    AuthModalComponent,
+    StyleControlsComponent
   ],
   template: `
     <div class="app-layout">
       <app-header 
         (openSettingsEvent)="openSettingsModal()" 
         (openAuthEvent)="showAuthModal.set(true)"
+        (openMobileMenuEvent)="showMobileMenu.set(true)"
       />
 
       <main class="main-workspace">
@@ -117,6 +120,62 @@ import { AIProviderType } from './core/models/graph.models';
             <div class="modal-footer">
               <button class="btn-secondary" (click)="clearAllKeys()">Clear All Keys</button>
               <button class="btn-primary" (click)="saveAllSettings()">Save Configuration</button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- ROOT LEVEL MOBILE SLIDE-OVER DRAWER -->
+      @if (showMobileMenu()) {
+        <div class="mobile-drawer-backdrop" (click)="showMobileMenu.set(false)">
+          <div class="mobile-drawer" (click)="$event.stopPropagation()">
+            <div class="drawer-header">
+              <div class="flex items-center gap-2">
+                <span class="text-lg">✍️</span>
+                <span class="font-bold text-sm text-white">Ghostwriter Menu</span>
+              </div>
+              <button class="btn-drawer-close" (click)="showMobileMenu.set(false)">✕</button>
+            </div>
+
+            <div class="drawer-content">
+              <!-- Story Management -->
+              <div class="drawer-section">
+                <span class="drawer-section-title">Story Workspace</span>
+                <button class="drawer-item-btn primary" (click)="startNewStoryPrompt(); showMobileMenu.set(false)">
+                  <span>✨</span> + New Story from Scratch
+                </button>
+                <button class="drawer-item-btn" (click)="resetToDemo(); showMobileMenu.set(false)">
+                  <span>🌆</span> Load Cyberpunk Demo
+                </button>
+              </div>
+
+              <!-- Style Controls -->
+              <div class="drawer-section">
+                <span class="drawer-section-title">Genre & Style Controls</span>
+                <app-style-controls />
+              </div>
+
+              <!-- Cloud & AI -->
+              <div class="drawer-section">
+                <span class="drawer-section-title">Cloud & AI Settings</span>
+                <button class="drawer-item-btn" (click)="showAuthModal.set(true); showMobileMenu.set(false)">
+                  <span>☁️</span> {{ supabase.isAuthenticated() ? 'Account: ' + supabase.currentUser()?.email : 'Connect Supabase Cloud' }}
+                </button>
+                <button class="drawer-item-btn" (click)="openSettingsModal(); showMobileMenu.set(false)">
+                  <span>⚙️</span> Configure AI Keys (Gemini / Groq)
+                </button>
+              </div>
+
+              <!-- Export -->
+              <div class="drawer-section">
+                <span class="drawer-section-title">Export Options</span>
+                <button class="drawer-item-btn" (click)="downloadNovelManuscript(); showMobileMenu.set(false)">
+                  <span>📖</span> Export Novel Manuscript (.md)
+                </button>
+                <button class="drawer-item-btn" (click)="downloadTreeJson(); showMobileMenu.set(false)">
+                  <span>💾</span> Export Story Tree Backup (.json)
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -339,6 +398,93 @@ import { AIProviderType } from './core/models/graph.models';
     }
 
     .text-xxs { font-size: 10px; }
+
+    /* ROOT LEVEL MOBILE DRAWER */
+    .mobile-drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 9999999;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .mobile-drawer {
+      width: 320px;
+      max-width: 85vw;
+      height: 100%;
+      background: #0f172a;
+      border-left: 1px solid #334155;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.9);
+    }
+
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 12px;
+    }
+
+    .btn-drawer-close {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .drawer-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .drawer-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .drawer-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .drawer-item-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .drawer-item-btn.primary {
+      background: rgba(124, 58, 237, 0.2);
+      border-color: rgba(168, 85, 247, 0.4);
+      color: #e9d5ff;
+    }
+
+    .drawer-item-btn:hover { background: #334155; }
   `]
 })
 export class AppComponent {
@@ -348,6 +494,7 @@ export class AppComponent {
 
   readonly showSettingsModal = signal<boolean>(false);
   readonly showAuthModal = signal<boolean>(false);
+  readonly showMobileMenu = signal<boolean>(false);
 
   geminiKeyInput = '';
   groqKeyInput = '';
@@ -391,5 +538,40 @@ export class AppComponent {
     this.aiService.setGroqApiKey('');
     this.aiService.setPreferredProvider('OFFLINE');
     this.showSettingsModal.set(false);
+  }
+
+  startNewStoryPrompt(): void {
+    const title = prompt('Enter story title:', 'My New Webnovel');
+    if (title && title.trim()) {
+      this.store.createNewStory(title.trim());
+    }
+  }
+
+  resetToDemo(): void {
+    if (confirm('Load the starter Cyberpunk demo story? (Active draft will be replaced)')) {
+      this.store.resetToDemoStory();
+    }
+  }
+
+  downloadNovelManuscript(): void {
+    const markdown = this.store.exportNovelManuscript();
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${this.store.currentTree().title.replace(/[^a-zA-Z0-9]/g, '_')}_manuscript.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  downloadTreeJson(): void {
+    const json = this.store.exportJson();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ghostwriter-story-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 }

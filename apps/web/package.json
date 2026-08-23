@@ -1,13 +1,14 @@
 {
   "name": "web",
-  "version": "0.1.0",
+  "version": "0.5.1",
   "private": true,
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "prebuild": "npm test",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "node scripts/run-regression-tests.mjs"
   },
   "dependencies": {
     "@angular/animations": "^19.1.0",

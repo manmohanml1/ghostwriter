@@ -17,6 +17,8 @@ interface LayoutEdge {
   path: string;
   label?: string;
   edgeType: string;
+  labelX: number;
+  labelY: number;
 }
 
 @Component({
@@ -31,6 +33,9 @@ interface LayoutEdge {
       (mousemove)="onPanMove($event)"
       (mouseup)="onPanEnd()"
       (mouseleave)="onPanEnd()"
+      (touchstart)="onTouchStart($event)"
+      (touchmove)="onTouchMove($event)"
+      (touchend)="onTouchEnd()"
       (wheel)="onWheel($event)"
       tabindex="0"
       (keydown)="onKeyDown($event)"
@@ -49,7 +54,7 @@ interface LayoutEdge {
         [style.transform]="'translate(' + panX() + 'px, ' + panY() + 'px) scale(' + store.zoomLevel() + ')'"
       >
         <!-- SVG Connecting Curves Layer -->
-        <svg class="edges-layer" [attr.width]="canvasBounds().width" [attr.height]="canvasBounds().height">
+        <svg class="edges-layer" width="4000" height="3000">
           <defs>
             <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stop-color="#6366f1" stop-opacity="0.8" />
@@ -73,13 +78,23 @@ interface LayoutEdge {
               [class.edge-pruned]="edge.target.status === 'PRUNED'"
             />
             @if (edge.label) {
-              <text
-                [attr.x]="(edge.source.x + edge.target.x) / 2 + 130"
-                [attr.y]="(edge.source.y + edge.target.y) / 2 + 30"
-                class="edge-label"
-              >
-                {{ edge.label }}
-              </text>
+              <g class="edge-label-group">
+                <rect
+                  [attr.x]="edge.labelX - 60"
+                  [attr.y]="edge.labelY - 10"
+                  width="120"
+                  height="20"
+                  rx="10"
+                  class="edge-label-bg"
+                />
+                <text
+                  [attr.x]="edge.labelX"
+                  [attr.y]="edge.labelY + 4"
+                  class="edge-label"
+                >
+                  {{ edge.label }}
+                </text>
+              </g>
             }
           }
         </svg>
@@ -223,29 +238,39 @@ interface LayoutEdge {
 
     .edge-path {
       fill: none;
-      stroke: url(#edgeGrad);
+      stroke: #a855f7;
       stroke-width: 2.5px;
       stroke-linecap: round;
-      transition: all 0.3s ease;
+      transition: all 0.2s ease;
+      filter: drop-shadow(0 0 3px rgba(168, 85, 247, 0.45));
     }
 
     .edge-canon {
-      stroke: url(#canonGrad);
-      stroke-width: 3.5px;
-      filter: url(#glow);
+      stroke: #facc15 !important;
+      stroke-width: 3.5px !important;
+      filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.85)) !important;
     }
 
     .edge-pruned {
-      stroke: #475569;
+      stroke: #475569 !important;
       stroke-dasharray: 4 4;
-      opacity: 0.4;
+      opacity: 0.35;
+      filter: none !important;
+    }
+
+    .edge-label-bg {
+      fill: rgba(15, 23, 42, 0.95);
+      stroke: rgba(168, 85, 247, 0.4);
+      stroke-width: 1px;
     }
 
     .edge-label {
       font-size: 10px;
-      fill: #a855f7;
+      fill: #e9d5ff;
+      font-weight: 600;
       font-family: 'JetBrains Mono', monospace;
       text-anchor: middle;
+      dominant-baseline: middle;
     }
 
     .nodes-layer {
@@ -444,7 +469,7 @@ export class TreeCanvasComponent {
     const map = this.nodeMap();
     const edges: LayoutEdge[] = [];
 
-    tree.edges.forEach(e => {
+    (tree.edges || []).forEach(e => {
       const source = map.get(e.sourceNodeId);
       const target = map.get(e.targetNodeId);
       if (!source || !target) return;
@@ -456,6 +481,8 @@ export class TreeCanvasComponent {
 
       const dx = (x2 - x1) / 2;
       const path = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+      const labelX = (x1 + x2) / 2;
+      const labelY = (y1 + y2) / 2 - 12;
 
       edges.push({
         id: e.id,
@@ -463,7 +490,9 @@ export class TreeCanvasComponent {
         target,
         path,
         label: e.label,
-        edgeType: e.edgeType
+        edgeType: e.edgeType,
+        labelX,
+        labelY
       });
     });
 
@@ -498,6 +527,25 @@ export class TreeCanvasComponent {
     this.isPanning = false;
   }
 
+  onTouchStart(event: TouchEvent): void {
+    if ((event.target as HTMLElement).closest('.node-card, .canvas-controls')) return;
+    if (event.touches.length === 1) {
+      this.isPanning = true;
+      this.startX = event.touches[0].clientX - this.panX();
+      this.startY = event.touches[0].clientY - this.panY();
+    }
+  }
+
+  onTouchMove(event: TouchEvent): void {
+    if (!this.isPanning || event.touches.length !== 1) return;
+    this.panX.set(event.touches[0].clientX - this.startX);
+    this.panY.set(event.touches[0].clientY - this.startY);
+  }
+
+  onTouchEnd(): void {
+    this.isPanning = false;
+  }
+
   onWheel(event: WheelEvent): void {
     event.preventDefault();
     const delta = event.deltaY > 0 ? -0.08 : 0.08;
@@ -518,9 +566,10 @@ export class TreeCanvasComponent {
     this.panY.set(100);
   }
 
-  onNodeClick(event: MouseEvent, nodeId: string): void {
+  onNodeClick(event: MouseEvent | TouchEvent, nodeId: string): void {
     event.stopPropagation();
     this.store.selectNode(nodeId);
+    this.store.isInspectorOpen.set(true);
   }
 
   onKeyDown(event: KeyboardEvent): void {

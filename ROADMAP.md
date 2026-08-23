@@ -39,6 +39,14 @@ This document tracks the phased development and release plan for **Ghostwriter**
   - Supabase PostgreSQL schema with Row-Level Security (RLS).
   - In-app Supabase Auth Modal (Email, Google, GitHub, Custom Backend).
 
+- [x] **v0.5.1 (Cascade Pruning, In-Place Cloud Sync & End-to-End Regression Suite)**:
+  - 1-Click AI Undo Snapshot (`[↺ Restore Previous Text]`).
+  - Recursive Cascade Branch Pruning with descendant cleanup.
+  - Parent Chapter divergence safeguard & high-contrast action modal.
+  - Multi-account PostgreSQL UUID scoping & in-place story update stability.
+  - Persistent mobile navigation toolbar and slide-over menu drawer.
+  - Automated native end-to-end regression test suite running pre-build & in CI.
+
 - [ ] **v0.6.0 (Public Story Showcase & Standalone Web Player)**:
   - 1-Click "Publish Story" generating shareable URLs (`/story/:slug`).
   - Standalone reader player for mobile readers with branch choices.

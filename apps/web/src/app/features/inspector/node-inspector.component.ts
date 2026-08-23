@@ -29,7 +29,7 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
             }
           </div>
 
-          <button class="btn-close" (click)="store.toggleInspector()" title="Toggle Inspector">✕</button>
+          <button class="btn-close" (click)="store.isInspectorOpen.set(false)" title="Close Inspector">✕ Done</button>
         </div>
 
         <!-- Inspector Tabs -->
@@ -90,16 +90,15 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
             </div>
 
             @if (node.status === 'PRUNED') {
-              <!-- Pruned Node Recovery Banner -->
+              <!-- Pruned Node Clean Banner -->
               <div class="pruned-alert-box">
                 <div class="flex items-center justify-between">
                   <div>
-                    <h5 class="pruned-title">⛔ This branch was pruned</h5>
+                    <h5 class="pruned-title">⛔ This branch is pruned</h5>
                     <p class="pruned-desc">This timeline is excluded from the canon story.</p>
                   </div>
                   <div class="flex gap-2">
-                    <button class="btn-restore" (click)="store.restorePrunedNode(node.id)">♻️ Restore</button>
-                    <button class="btn-delete-perm" (click)="store.permanentlyDeleteNode(node.id)">🗑️ Delete</button>
+                    <button class="btn-delete-perm" (click)="store.permanentlyDeleteNode(node.id)">🗑️ Clean & Delete</button>
                   </div>
                 </div>
               </div>
@@ -113,28 +112,34 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
                 class="input-title"
                 [ngModel]="node.title"
                 (ngModelChange)="onTitleChange($event)"
-                placeholder="e.g. Chapter 1: The Midnight Transmission"
+                placeholder="Chapter title..."
               />
             </div>
 
-            <!-- Deep Webnovel Chapter Expander Actions -->
-            <div class="novel-writer-tools">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-200">⚡ Webnovel Pro Actions:</span>
+            <!-- Webnovel Pro Actions -->
+            <div class="pro-actions-card">
+              <div class="flex items-center justify-between mb-2">
+                <span class="pro-label">⚡ Webnovel Pro Actions</span>
+                <span class="pro-badge">AI Assistant</span>
+              </div>
+
+              <div class="form-group mb-2">
+                <label class="form-sublabel">Chapter Beat Focus & Detail:</label>
                 <select [(ngModel)]="selectedBeatFocus" class="select-beat">
                   <option value="BALANCED">⚖️ Balanced Multi-Scene</option>
-                  <option value="ACTION_CONFRONTATION">💥 Action & Confrontation</option>
-                  <option value="CHARACTER_DIALOGUE">🗣️ Deep Dialogue & Drama</option>
-                  <option value="INVESTIGATION_LORE">🔍 Forensic Investigation</option>
-                  <option value="CLIFFHANGER_CLIMAX">⚡ Shocking Cliffhanger</option>
+                  <option value="ACTION">⚔️ Fast-Paced Action & Tension</option>
+                  <option value="DIALOGUE">💬 Deep Character Dialogue</option>
+                  <option value="WORLD_BUILDING">🏛️ Atmospheric Lore & Setting</option>
+                  <option value="SUSPENSE">🕯️ Slow-Burn Psychological Suspense</option>
                 </select>
               </div>
 
               <div class="grid grid-cols-2 gap-2 mt-2">
                 <button 
                   class="btn-expand-novel"
+                  [class.btn-has-children]="store.activeChildren().length > 0"
                   [disabled]="store.isExpandingChapter()"
-                  (click)="expandChapter()"
+                  (click)="handleExpandClick()"
                 >
                   @if (store.isExpandingChapter()) { ⏳ Expanding Novel Chapter... }
                   @else { ⚡ Expand into Full Chapter }
@@ -142,8 +147,9 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
 
                 <button 
                   class="btn-continue-para"
+                  [class.btn-has-children]="store.activeChildren().length > 0"
                   [disabled]="store.isGeneratingAI()"
-                  (click)="store.appendNextParagraph()"
+                  (click)="handleAppendParaClick()"
                 >
                   @if (store.isGeneratingAI()) { ⏳ Writing... }
                   @else { ⏩ + Write Next Paragraph }
@@ -155,8 +161,25 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
             <div class="form-group flex-1 flex flex-col">
               <div class="flex justify-between items-center mb-1">
                 <label class="form-label">Chapter Narrative (Markdown)</label>
-                <span class="text-xs text-slate-500 font-mono">{{ node.content.length }} chars</span>
+                <div class="flex items-center gap-2">
+                  @if (store.canUndoAI()) {
+                    <button class="btn-undo-link" (click)="store.undoLastAIChange()" title="Revert to previous text before AI generation">
+                      ↺ Undo AI Write
+                    </button>
+                  }
+                  <span class="text-xs text-slate-500 font-mono">{{ node.content.length }} chars</span>
+                </div>
               </div>
+
+              @if (store.canUndoAI()) {
+                <div class="undo-banner mb-2">
+                  <span class="undo-text">✨ AI writing generated. Review or revert anytime:</span>
+                  <button class="btn-undo-ai" (click)="store.undoLastAIChange()">
+                    ↺ Restore Previous Text
+                  </button>
+                </div>
+              }
+
               <textarea
                 class="textarea-content"
                 [ngModel]="node.content"
@@ -298,6 +321,53 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
         </div>
       </aside>
     }
+
+    <!-- Divergence Confirmation Modal with Prune or Delete Options -->
+    @if (showExpandWarningModal()) {
+      <div class="custom-modal-backdrop" (click)="showExpandWarningModal.set(false)">
+        <div class="custom-modal-card" (click)="$event.stopPropagation()">
+          <div class="custom-modal-header">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">⚠️</span>
+              <div>
+                <h3 class="custom-modal-title">Parent Chapter Has {{ store.activeChildren().length }} Child Branches</h3>
+                <p class="custom-modal-subtitle">Modifying this chapter alters upstream canon continuity.</p>
+              </div>
+            </div>
+            <button class="btn-modal-close" (click)="showExpandWarningModal.set(false)">✕</button>
+          </div>
+
+          <div class="custom-modal-body">
+            <div class="warning-box">
+              <span class="warning-tag">⚠️ Choose How to Handle Downstream Branches:</span>
+              <p class="warning-text">
+                Rewriting this root chapter will cause narrative divergence with its <b>{{ store.activeChildren().length }} downstream branch(es)</b>.
+              </p>
+            </div>
+
+            <div class="flex flex-col gap-2.5 mt-3">
+              <button class="btn-modal-action prune" (click)="proceedWithPruneChildren()">
+                <div class="text-left">
+                  <div class="action-title prune-text">✂️ Cascade Prune Child Branches</div>
+                  <div class="action-desc">Keeps child branch cards visible on canvas marked as archived / pruned.</div>
+                </div>
+              </button>
+
+              <button class="btn-modal-action delete" (click)="proceedWithDeleteChildren()">
+                <div class="text-left">
+                  <div class="action-title delete-text">🗑️ Delete Child Branches Permanently</div>
+                  <div class="action-desc">Completely removes all downstream child branch cards and connecting curves.</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div class="custom-modal-footer">
+            <button class="btn-cancel" (click)="showExpandWarningModal.set(false)">Cancel</button>
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: [`
     .inspector-panel {
@@ -317,6 +387,7 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
       transform: translateX(100%);
       width: 0;
       opacity: 0;
+      pointer-events: none;
     }
 
     .inspector-header {
@@ -491,6 +562,66 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
       transition: width 0.3s ease;
     }
 
+    .parent-branch-warning-banner {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 8px;
+      padding: 8px 12px;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .undo-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: rgba(168, 85, 247, 0.12);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      padding: 8px 12px;
+      border-radius: 8px;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .undo-text {
+      font-size: 11px;
+      color: #e9d5ff;
+      font-weight: 500;
+    }
+
+    .btn-undo-ai {
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      color: #fff;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 8px rgba(168, 85, 247, 0.3);
+    }
+
+    .btn-undo-ai:hover {
+      filter: brightness(1.15);
+      transform: translateY(-1px);
+    }
+
+    .btn-undo-link {
+      background: transparent;
+      border: none;
+      color: #c084fc;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0;
+    }
+
+    .btn-undo-link:hover {
+      color: #e9d5ff;
+    }
+
     .pruned-alert-box {
       background: rgba(239, 68, 68, 0.12);
       border: 1px solid rgba(239, 68, 68, 0.4);
@@ -576,6 +707,11 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
     .btn-continue-para:hover {
       background: #334155;
       color: #fff;
+    }
+
+    .btn-has-children {
+      border: 1px solid #f59e0b !important;
+      background: linear-gradient(135deg, #b45309, #d97706) !important;
     }
 
     .form-group {
@@ -873,6 +1009,177 @@ type InspectorTab = 'EDITOR' | 'LORE' | 'COHERENCE';
       color: #64748b;
       line-height: 1.35;
     }
+
+    /* Modal Styles */
+    .custom-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: fadeIn 0.15s ease-out;
+    }
+
+    .custom-modal-card {
+      background: #0f172a;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      border-radius: 14px;
+      padding: 20px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(168, 85, 247, 0.2);
+    }
+
+    .custom-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 12px;
+    }
+
+    .custom-modal-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .custom-modal-subtitle {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .btn-modal-close {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .custom-modal-body {
+      padding: 14px 0;
+    }
+
+    .warning-box {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .warning-tag {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fbbf24;
+    }
+
+    .warning-text {
+      font-size: 11px;
+      color: #e2e8f0;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .btn-modal-action {
+      background: #0f172a;
+      border: 1px solid #334155;
+      padding: 12px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+
+    .btn-modal-action.prune {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.45);
+    }
+
+    .btn-modal-action.prune:hover {
+      background: rgba(245, 158, 11, 0.22);
+      border-color: #f59e0b;
+      transform: translateY(-1px);
+    }
+
+    .btn-modal-action.delete {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.45);
+    }
+
+    .btn-modal-action.delete:hover {
+      background: rgba(239, 68, 68, 0.22);
+      border-color: #ef4444;
+      transform: translateY(-1px);
+    }
+
+    .action-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .action-title.prune-text {
+      color: #fde047;
+    }
+
+    .action-title.delete-text {
+      color: #fca5a5;
+    }
+
+    .action-desc {
+      font-size: 11px;
+      color: #cbd5e1;
+      margin-top: 3px;
+      line-height: 1.35;
+    }
+
+    .custom-modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      border-top: 1px solid #1e293b;
+      padding-top: 14px;
+    }
+
+    .btn-cancel {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    @media (max-width: 1024px) {
+      .inspector-panel {
+        position: fixed;
+        top: 56px;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100vw;
+        max-width: 100vw;
+        z-index: 100;
+        border-left: none;
+        border-top: 1px solid rgba(168, 85, 247, 0.4);
+      }
+
+      .inspector-panel.collapsed {
+        transform: translateY(100%);
+        width: 100vw;
+        opacity: 0;
+        pointer-events: none;
+      }
+    }
   `]
 })
 export class NodeInspectorComponent {
@@ -881,6 +1188,8 @@ export class NodeInspectorComponent {
 
   readonly activeTab = signal<InspectorTab>('EDITOR');
   readonly showNewBranchForm = signal<boolean>(false);
+  readonly showExpandWarningModal = signal<boolean>(false);
+  pendingAction: 'EXPAND' | 'PARAGRAPH' = 'EXPAND';
   selectedBeatFocus: ChapterBeatFocus = 'BALANCED';
 
   newBranchTitle = '';
@@ -901,11 +1210,51 @@ export class NodeInspectorComponent {
     }
   }
 
-  expandChapter(): void {
-    this.store.expandActiveChapter({
-      targetLength: 'FULL_CHAPTER',
-      focusBeat: this.selectedBeatFocus
-    });
+  handleExpandClick(): void {
+    if (this.store.activeChildren().length > 0) {
+      this.pendingAction = 'EXPAND';
+      this.showExpandWarningModal.set(true);
+    } else {
+      this.executeAIWrite('EXPAND');
+    }
+  }
+
+  handleAppendParaClick(): void {
+    if (this.store.activeChildren().length > 0) {
+      this.pendingAction = 'PARAGRAPH';
+      this.showExpandWarningModal.set(true);
+    } else {
+      this.executeAIWrite('PARAGRAPH');
+    }
+  }
+
+  proceedWithPruneChildren(): void {
+    const active = this.store.selectedNode();
+    if (active) {
+      this.store.pruneChildrenOf(active.id);
+    }
+    this.showExpandWarningModal.set(false);
+    this.executeAIWrite(this.pendingAction);
+  }
+
+  proceedWithDeleteChildren(): void {
+    const active = this.store.selectedNode();
+    if (active) {
+      this.store.deleteChildrenOf(active.id);
+    }
+    this.showExpandWarningModal.set(false);
+    this.executeAIWrite(this.pendingAction);
+  }
+
+  private executeAIWrite(action: 'EXPAND' | 'PARAGRAPH'): void {
+    if (action === 'EXPAND') {
+      this.store.expandActiveChapter({
+        targetLength: 'FULL_CHAPTER',
+        focusBeat: this.selectedBeatFocus
+      });
+    } else {
+      this.store.appendNextParagraph();
+    }
   }
 
   submitNewBranch(): void {

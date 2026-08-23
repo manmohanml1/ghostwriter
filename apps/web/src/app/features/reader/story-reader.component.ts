@@ -727,6 +727,40 @@ import { ReaderTheme } from '../../core/models/graph.models';
       font-weight: 600;
       cursor: pointer;
     }
+
+    @media (max-width: 768px) {
+      .reader-header {
+        height: auto;
+        padding: 8px 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .header-left {
+        flex: 1;
+        min-width: 0;
+        gap: 8px;
+      }
+      .story-title {
+        max-width: 140px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .genre-tag { display: none; }
+      .header-right { display: none; }
+      .reader-toolbar {
+        width: 100%;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .novel-reading-page {
+        padding: 24px 16px;
+      }
+      .toc-drawer {
+        width: 100vw;
+        max-width: 100vw;
+      }
+    }
   `]
 })
 export class StoryReaderComponent {

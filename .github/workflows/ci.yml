@@ -26,6 +26,9 @@ jobs:
       - name: Build Contracts Package
         run: npm --workspace=@ghostwriter/contracts run build --if-present
 
+      - name: Run End-to-End Regression Test Suite
+        run: npm --workspace=web run test
+
       - name: Build Web Application
         run: npm --workspace=web run build
 
