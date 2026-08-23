@@ -49,7 +49,7 @@ export class TreeStore {
   // Core Signals
   readonly currentTree = signal<StoryTree>(this.loadInitialTree());
   readonly selectedNodeId = signal<string>(this.currentTree().rootNodeId);
-  readonly isInspectorOpen = signal<boolean>(true);
+  readonly isInspectorOpen = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth > 820 : true);
   readonly zoomLevel = signal<number>(1.0);
   readonly activeViewMode = signal<ViewMode>('CANVAS');
   readonly showPrunedNodes = signal<boolean>(true);

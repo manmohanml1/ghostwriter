@@ -160,63 +160,10 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
           </button>
         }
 
-        <button class="mobile-action-btn menu-btn" (click)="showMobileMenu.set(true)" title="Menu">
+        <button class="mobile-action-btn menu-btn" (click)="openMobileMenuEvent.emit()" title="Open Menu">
           ☰
         </button>
       </div>
-
-      <!-- Mobile Slide-Over Drawer -->
-      @if (showMobileMenu()) {
-        <div class="mobile-drawer-backdrop" (click)="showMobileMenu.set(false)">
-          <div class="mobile-drawer" (click)="$event.stopPropagation()">
-            <div class="drawer-header">
-              <span class="font-bold text-sm text-white">Ghostwriter Menu</span>
-              <button class="btn-drawer-close" (click)="showMobileMenu.set(false)">✕</button>
-            </div>
-
-            <div class="drawer-content">
-              <!-- Story Management -->
-              <div class="drawer-section">
-                <span class="drawer-section-title">Story Workspace</span>
-                <button class="drawer-item-btn" (click)="startNewStoryPrompt(); showMobileMenu.set(false)">
-                  <span>✨</span> + New Story from Scratch
-                </button>
-                <button class="drawer-item-btn" (click)="resetToDemo(); showMobileMenu.set(false)">
-                  <span>🌆</span> Load Cyberpunk Demo
-                </button>
-              </div>
-
-              <!-- Style Controls -->
-              <div class="drawer-section">
-                <span class="drawer-section-title">Genre & Style Controls</span>
-                <app-style-controls />
-              </div>
-
-              <!-- Cloud & AI -->
-              <div class="drawer-section">
-                <span class="drawer-section-title">Cloud & AI Settings</span>
-                <button class="drawer-item-btn" (click)="openAuthEvent.emit(); showMobileMenu.set(false)">
-                  <span>☁️</span> {{ supabase.isAuthenticated() ? 'Manage Account (' + supabase.currentUser()?.email + ')' : 'Connect Supabase Cloud' }}
-                </button>
-                <button class="drawer-item-btn" (click)="openSettingsEvent.emit(); showMobileMenu.set(false)">
-                  <span>⚙️</span> Configure AI Keys (Gemini / Groq)
-                </button>
-              </div>
-
-              <!-- Export -->
-              <div class="drawer-section">
-                <span class="drawer-section-title">Export Options</span>
-                <button class="drawer-item-btn" (click)="downloadNovelManuscript(); showMobileMenu.set(false)">
-                  <span>📖</span> Export Novel Manuscript (.md)
-                </button>
-                <button class="drawer-item-btn" (click)="downloadTreeJson(); showMobileMenu.set(false)">
-                  <span>💾</span> Export Story Tree Backup (.json)
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      }
     </header>
   `,
   styles: [`
@@ -599,86 +546,6 @@ import { StyleControlsComponent } from '../style-controls/style-controls.compone
       padding: 4px 8px;
     }
 
-    /* Mobile Drawer */
-    .mobile-drawer-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(8px);
-      z-index: 99999;
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    .mobile-drawer {
-      width: 320px;
-      max-width: 85vw;
-      height: 100%;
-      background: #0f172a;
-      border-left: 1px solid #334155;
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      overflow-y: auto;
-    }
-
-    .drawer-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid #1e293b;
-      padding-bottom: 12px;
-    }
-
-    .btn-drawer-close {
-      background: #1e293b;
-      border: 1px solid #334155;
-      color: #94a3b8;
-      width: 28px;
-      height: 28px;
-      border-radius: 6px;
-      font-size: 14px;
-      cursor: pointer;
-    }
-
-    .drawer-content {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .drawer-section {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .drawer-section-title {
-      font-size: 10px;
-      font-weight: 700;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .drawer-item-btn {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: #1e293b;
-      border: 1px solid #334155;
-      color: #f8fafc;
-      padding: 10px 12px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      text-align: left;
-    }
-
-    .drawer-item-btn:hover { background: #334155; }
-
     /* Media Queries */
     @media (max-width: 1024px) {
       .desktop-style-controls { display: none; }
@@ -700,10 +567,10 @@ export class HeaderComponent {
 
   readonly openSettingsEvent = output<void>();
   readonly openAuthEvent = output<void>();
+  readonly openMobileMenuEvent = output<void>();
 
   readonly showExportMenu = signal<boolean>(false);
   readonly showStoryMenu = signal<boolean>(false);
-  readonly showMobileMenu = signal<boolean>(false);
 
   toggleExportMenu(): void {
     this.showExportMenu.update(v => !v);
