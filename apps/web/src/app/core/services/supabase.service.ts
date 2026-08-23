@@ -62,7 +62,7 @@ export class SupabaseService {
       url.includes('.supabase.co') &&
       !url.includes('demo') &&
       !url.includes('example') &&
-      key.length > 20 &&
+      key.length > 15 &&
       !key.includes('dummy')
     );
   }

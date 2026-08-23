@@ -6,10 +6,10 @@ export const environment: AppEnvironment = {
   version: '0.5.0',
   appTitle: 'Ghostwriter Studio',
   supabase: {
-    url: 'https://ghostwriter-prod.supabase.co',
-    anonKey: 'production_anon_key',
+    url: 'https://wuzasgwsyyukhhrwehau.supabase.co',
+    anonKey: 'sb_publishable_6h20KrE1Oya2-AGjFleRFQ_42GdlnDW',
     authEnabled: true,
-    autoSyncIntervalMs: 60000
+    autoSyncIntervalMs: 30000
   },
   features: {
     aiProviders: true,
