@@ -1,0 +1,467 @@
+@if (store.selectedNode(); as node) {
+  <aside 
+    class="inspector-panel" 
+    [class.collapsed]="!store.isInspectorOpen()"
+    [attr.data-sheet-state]="mobileSheetState()"
+  >
+    <!-- Mobile Drag Handle Bar -->
+    <div class="mobile-sheet-handle-bar" (click)="toggleMobileSheet()" title="Expand or Collapse Bottom Sheet">
+      <div class="sheet-pill-handle"></div>
+    </div>
+
+    <!-- Header & Breadcrumbs -->
+    <div class="inspector-header">
+      <div class="breadcrumbs">
+        @for (crumb of store.breadcrumbTrail(); track crumb.id; let last = $last) {
+          <span 
+            class="crumb-link" 
+            [class.active]="last"
+            (click)="store.selectNode(crumb.id)"
+          >
+            {{ crumb.title || 'Chapter' }}
+          </span>
+          @if (!last) { <span class="crumb-separator">/</span> }
+        }
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button 
+          class="btn-sheet-expand-toggle"
+          (click)="toggleMobileSheet()" 
+          title="Toggle Sheet Height"
+        >
+          @if (mobileSheetState() === 'FULL') { ⬇️ }
+          @else if (mobileSheetState() === 'HALF') { ⬆️ }
+          @else { ↕️ }
+        </button>
+        <button class="btn-close" (click)="store.isInspectorOpen.set(false)" title="Close Inspector">✕</button>
+      </div>
+    </div>
+
+    <!-- Inspector Tabs -->
+    <div class="tab-bar">
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'EDITOR'"
+        (click)="activeTab.set('EDITOR')"
+      >
+        ✍️ Chapter Editor
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'LORE'"
+        (click)="activeTab.set('LORE')"
+      >
+        📜 Lore Bible ({{ store.loreBible().length }})
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'COHERENCE'"
+        (click)="activeTab.set('COHERENCE')"
+      >
+        🎯 Coherence
+      </button>
+    </div>
+
+    <div class="inspector-body">
+      <!-- TAB 1: CHAPTER EDITOR -->
+      @if (activeTab() === 'EDITOR') {
+        <!-- Status & Chapter Metrics Banner -->
+        <div class="metrics-card">
+          <div class="flex items-center justify-between">
+            <div class="status-info">
+              <span class="status-indicator"></span>
+              <span class="status-title">
+                @if (node.status === 'CANON_PATH') { ⭐ Canon Storyline Path }
+                @else if (node.status === 'PRUNED') { ⛔ Pruned (Abandoned Timeline) }
+                @else { ✍️ Active Chapter Branch }
+              </span>
+            </div>
+            <span class="read-badge">📖 ~{{ store.activeChapterReadTime() }} min read</span>
+          </div>
+
+          <!-- Word Count Goal Progress Meter with Clean Layout -->
+          <div class="word-meter-box">
+            <div class="meter-labels-row">
+              <span class="meter-current-count">{{ store.activeChapterWordCount() }} words</span>
+              <span class="meter-target-label">Target: 1,500w (Novel Chapter)</span>
+            </div>
+            <div class="meter-bar">
+              <div 
+                class="meter-fill" 
+                [style.width.%]="Math.min(100, (store.activeChapterWordCount() / 1500) * 100)"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- In-Flight Entity Harvester Card -->
+        @if (discoveredEntities().length > 0) {
+          <div class="entity-harvester-card">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-1.5">
+                <span class="text-sm">✨</span>
+                <span class="font-bold text-xs text-amber-300">New Story Elements Discovered</span>
+                <span class="pill-count">({{ discoveredEntities().length }})</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button class="btn-add-all-entities" (click)="addAllHarvestedEntities()" title="Add all to Lore Bible">
+                  + Add All to Bible
+                </button>
+                <button class="btn-dismiss-entities" (click)="dismissHarvestedEntities()" title="Dismiss">✕</button>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              @for (ent of discoveredEntities(); track ent.name) {
+                <div class="entity-chip" [attr.data-cat]="ent.category">
+                  <span class="chip-cat">
+                    @if (ent.category === 'CHARACTER') { 👤 }
+                    @else if (ent.category === 'LOCATION') { 🏛️ }
+                    @else if (ent.category === 'ITEM') { 🗝️ }
+                    @else { 🛡️ }
+                  </span>
+                  <span class="chip-name">{{ ent.name }}</span>
+                  <button class="chip-add-btn" (click)="addHarvestedEntity(ent)" title="Add to Lore Bible">+</button>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        @if (node.status === 'PRUNED') {
+          <!-- Pruned Node Clean Banner -->
+          <div class="pruned-alert-box">
+            <div class="flex items-center justify-between">
+              <div>
+                <h5 class="pruned-title">⛔ This branch is pruned</h5>
+                <p class="pruned-desc">This timeline is excluded from the canon story.</p>
+              </div>
+              <div class="flex gap-2">
+                <button class="btn-delete-perm" (click)="store.permanentlyDeleteNode(node.id)">🗑️ Clean & Delete</button>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Title Input -->
+        <div class="form-group">
+          <label class="form-label">Chapter / Scene Title</label>
+          <input
+            type="text"
+            class="input-title"
+            [ngModel]="node.title"
+            (ngModelChange)="onTitleChange($event)"
+            placeholder="Chapter title..."
+          />
+        </div>
+
+        <!-- Webnovel Pro Actions -->
+        <div class="pro-actions-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="pro-label">⚡ Webnovel Pro Actions</span>
+            <span class="pro-badge">AI Assistant</span>
+          </div>
+
+          <div class="form-group mb-2">
+            <label class="form-sublabel">Chapter Beat Focus & Detail:</label>
+            <select [(ngModel)]="selectedBeatFocus" class="select-beat">
+              <option value="BALANCED">⚖️ Balanced Multi-Scene</option>
+              <option value="ACTION_CONFRONTATION">⚔️ Fast-Paced Action & Tension</option>
+              <option value="CHARACTER_DIALOGUE">💬 Deep Character Dialogue</option>
+              <option value="INVESTIGATION_LORE">🏛️ Atmospheric Lore & Setting</option>
+              <option value="CLIFFHANGER_CLIMAX">🕯️ Slow-Burn Psychological Suspense</option>
+            </select>
+          </div>
+
+          <!-- Novel Writing AI Quick Actions: Available immediately when initial scene is written -->
+          @if (hasStoryContent()) {
+            <div class="novel-writer-row">
+              <button 
+                class="btn-expand-novel"
+                [class.btn-has-children]="store.activeChildren().length > 0"
+                [disabled]="store.isExpandingChapter()"
+                (click)="handleExpandClick()"
+              >
+                @if (store.isExpandingChapter()) { ⏳ Expanding Novel Chapter... }
+                @else { ⚡ Expand into Full Chapter }
+              </button>
+
+              <button 
+                class="btn-continue-para"
+                [class.btn-has-children]="store.activeChildren().length > 0"
+                [disabled]="store.isGeneratingAI()"
+                (click)="handleAppendParaClick()"
+              >
+                @if (store.isGeneratingAI()) { ⏳ Writing... }
+                @else { ⏩ + Write Next Paragraph }
+              </button>
+            </div>
+          }
+
+          <!-- In-Flow Lore Extraction on Any Story Chapter / Branch -->
+          @if (hasStoryContent()) {
+            <div class="mt-2">
+              <button 
+                class="btn-extract-lore"
+                [class.btn-lore-unlocked]="store.canBranch()"
+                [disabled]="store.isExtractingLore()"
+                (click)="store.extractLoreFromActiveChapter()"
+                title="Extract character, item, and location lore from this scene into your Lore Bible"
+              >
+                @if (store.isExtractingLore()) { ⏳ Scanning Scene for Lore Entities... }
+                @else if (!store.canBranch()) { ✨ Generate World Lore & Character Bible from Scene }
+                @else { 📖 Scan Scene for New Characters & Lore ({{ store.loreBible().length }} in Bible) }
+              </button>
+            </div>
+          }
+        </div>
+
+        <!-- Content / Markdown Editor -->
+        <div class="form-group flex-1 flex flex-col">
+          <div class="flex justify-between items-center mb-1">
+            <label class="form-label">Chapter Narrative (Markdown)</label>
+            <div class="flex items-center gap-2">
+              @if (store.canUndoAI()) {
+                <button class="btn-undo-link" (click)="store.undoLastAIChange()" title="Revert to previous text before AI generation">
+                  ↺ Undo AI Write
+                </button>
+              }
+              <span class="text-xs text-slate-500 font-mono">{{ node.content.length }} chars</span>
+            </div>
+          </div>
+
+          @if (store.canUndoAI()) {
+            <div class="undo-banner mb-2">
+              <span class="undo-text">✨ AI writing generated. Review or revert anytime:</span>
+              <button class="btn-undo-ai" (click)="store.undoLastAIChange()">
+                ↺ Restore Previous Text
+              </button>
+            </div>
+          }
+
+          <textarea
+            class="textarea-content"
+            [ngModel]="node.content"
+            (ngModelChange)="onContentChange($event)"
+            rows="8"
+            placeholder="Write story text, multi-character dialogue, and world details..."
+          ></textarea>
+
+          @if (!hasStoryContent()) {
+            <div class="empty-scene-guide mt-2">
+              <span class="guide-icon">✍️</span>
+              <div class="guide-text">
+                <div class="guide-title">Write your opening scene above</div>
+                <div class="guide-subtitle">Type your scene text or dialogue. Once you begin writing, lore anchors and branching paths will appear.</div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Lore Anchor Requirement Warning if Bible is Empty -->
+        @if (hasStoryContent() && !store.canBranch()) {
+          <div class="lore-anchor-banner mb-3">
+            <div class="flex items-start gap-2">
+              <span class="text-base">⚓</span>
+              <div class="flex-1">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-xs text-amber-300">Lore Anchor Required to Branch</span>
+                  <span class="text-xxs px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-800/50">Story Canon Guard</span>
+                </div>
+                <p class="text-xxs text-slate-300 mt-1 leading-relaxed">
+                  Before creating divergent branches, establish at least 1 character or location in your Lore Bible so timelines stay grounded.
+                </p>
+                <div class="flex gap-2 mt-2">
+                  <button class="btn-quick-extract-anchor" (click)="store.extractLoreFromActiveChapter()">
+                    ✨ Auto-Extract Anchor from Scene
+                  </button>
+                  <button class="btn-quick-manual-anchor" (click)="activeTab.set('LORE')">
+                    ＋ Open Lore Bible
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- AI 3-Way Continuation Trigger: Visible only when story content AND Lore are present -->
+        @if (hasStoryContent() && store.canBranch()) {
+          <div class="ai-trigger-card">
+            <div class="ai-trigger-header">
+              <div>
+                <h4 class="ai-title">✨ Branching AI Engine</h4>
+                <p class="ai-subtitle">Generate 3 branching paths (*Action*, *Plot Twist*, *Intrigue*).</p>
+              </div>
+              <button 
+                class="btn-sparkle" 
+                [disabled]="store.isGeneratingAI()"
+                (click)="store.generate3AIPaths()"
+              >
+                @if (store.isGeneratingAI()) { ⏳ Writing... }
+                @else { ✨ Suggest 3 Paths }
+              </button>
+            </div>
+
+            <!-- AI Suggestions Preview Cards -->
+            @if (store.activeAiSuggestions().length > 0) {
+              <div class="suggestions-list">
+                <div class="flex items-center justify-between mt-2 mb-1">
+                  <span class="text-xs font-semibold text-purple-300">Suggested Branch Hypotheses:</span>
+                  <button class="btn-add-all" (click)="store.applyAllAISuggestions(node.id)">＋ Add All 3 Paths</button>
+                </div>
+
+                @for (suggestion of store.activeAiSuggestions(); track $index) {
+                  <div class="suggestion-card">
+                    <div class="suggestion-header">
+                      <span class="persona-tag">🤖 {{ suggestion.persona }}</span>
+                      <span class="score-tag">★ {{ suggestion.coherenceScore }}%</span>
+                    </div>
+                    <h5 class="suggestion-title">{{ suggestion.title }}</h5>
+                    <p class="suggestion-desc">{{ suggestion.content }}</p>
+                    <p class="suggestion-rationale">💡 {{ suggestion.rationale }}</p>
+                    <button class="btn-apply-suggestion" (click)="store.applyAISuggestion(node.id, suggestion)">
+                      ＋ Add this branch to canvas
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Manual Branch Creator Form -->
+        @if (showNewBranchForm()) {
+          <div class="branch-create-box">
+            <h4 class="box-title">Create Manual Branch</h4>
+            <input
+              type="text"
+              class="input-branch-title"
+              [(ngModel)]="newBranchTitle"
+              placeholder="Branch title..."
+            />
+            <textarea
+              class="textarea-branch-content"
+              [(ngModel)]="newBranchContent"
+              rows="3"
+              placeholder="Chapter continuation notes..."
+            ></textarea>
+
+            <div class="flex gap-2 items-center mb-3">
+              <label class="text-xs text-slate-400">Author:</label>
+              <select [(ngModel)]="newBranchAuthor" class="select-author">
+                <option value="HUMAN">✍️ Human Author</option>
+                <option value="AGENT">🤖 AI Persona</option>
+              </select>
+            </div>
+
+            <div class="flex gap-2 justify-end">
+              <button class="btn-secondary" (click)="showNewBranchForm.set(false)">Cancel</button>
+              <button class="btn-primary" (click)="submitNewBranch()">Create Branch</button>
+            </div>
+          </div>
+        }
+
+        <!-- Bottom Actions -->
+        <div class="inspector-actions">
+          @if (!showNewBranchForm() && node.status !== 'PRUNED' && hasStoryContent() && store.canBranch()) {
+            <button class="btn-action btn-add-branch" (click)="showNewBranchForm.set(true)">
+              <span>＋</span> Manual Branch
+            </button>
+          }
+
+          @if (node.status !== 'CANON_PATH' && node.parentNodeId && node.status !== 'PRUNED') {
+            <button class="btn-action btn-winner" (click)="store.setCanonPath(node.id)">
+              <span>⭐</span> Set as Canon
+            </button>
+          }
+
+          @if (node.status !== 'PRUNED' && node.parentNodeId) {
+            <button class="btn-action btn-prune" (click)="store.pruneNode(node.id)">
+              <span>⛔</span> Prune Timeline
+            </button>
+          }
+
+          @if (store.prunedNodesCount() > 0) {
+            <button class="btn-purge-all" (click)="store.purgeAllPruned()">
+              🧹 Clean Up All {{ store.prunedNodesCount() }} Pruned Branches
+            </button>
+          }
+        </div>
+      }
+
+      <!-- TAB 2: LORE BIBLE -->
+      @if (activeTab() === 'LORE') {
+        <app-lore-bible />
+      }
+
+      <!-- TAB 3: COHERENCE MATRIX -->
+      @if (activeTab() === 'COHERENCE') {
+        <div class="coherence-tab">
+          <h4 class="section-title">Narrative Coherence Matrix</h4>
+          @if (node.perspectiveScores && node.perspectiveScores.length > 0) {
+            <div class="scores-list">
+              @for (score of node.perspectiveScores; track score.perspectiveName) {
+                <div class="score-card">
+                  <div class="score-row">
+                    <span class="score-name">{{ score.perspectiveName }}</span>
+                    <span class="score-val">{{ score.score }}%</span>
+                  </div>
+                  <p class="score-reasoning">{{ score.reasoning }}</p>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="text-xs text-slate-400">Coherence is automatically scored when AI co-writers generate branch continuations.</p>
+          }
+        </div>
+      }
+    </div>
+  </aside>
+}
+
+<!-- Divergence Confirmation Modal with Prune or Delete Options -->
+@if (showExpandWarningModal()) {
+  <div class="custom-modal-backdrop" (click)="showExpandWarningModal.set(false)">
+    <div class="custom-modal-card" (click)="$event.stopPropagation()">
+      <div class="custom-modal-header">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">⚠️</span>
+          <div>
+            <h3 class="custom-modal-title">Parent Chapter Has {{ store.activeChildren().length }} Child Branches</h3>
+            <p class="custom-modal-subtitle">Modifying this chapter alters upstream canon continuity.</p>
+          </div>
+        </div>
+        <button class="btn-modal-close" (click)="showExpandWarningModal.set(false)">✕</button>
+      </div>
+
+      <div class="custom-modal-body">
+        <div class="warning-box">
+          <span class="warning-tag">⚠️ Choose How to Handle Downstream Branches:</span>
+          <p class="warning-text">
+            Rewriting this root chapter will cause narrative divergence with its <b>{{ store.activeChildren().length }} downstream branch(es)</b>.
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-2.5 mt-3">
+          <button class="btn-modal-action prune" (click)="proceedWithPruneChildren()">
+            <div class="text-left">
+              <div class="action-title prune-text">✂️ Cascade Prune Child Branches</div>
+              <div class="action-desc">Keeps child branch cards visible on canvas marked as archived / pruned.</div>
+            </div>
+          </button>
+
+          <button class="btn-modal-action delete" (click)="proceedWithDeleteChildren()">
+            <div class="text-left">
+              <div class="action-title delete-text">🗑️ Delete Child Branches Permanently</div>
+              <div class="action-desc">Completely removes all downstream child branch cards and connecting curves.</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div class="custom-modal-footer">
+        <button class="btn-cancel" (click)="showExpandWarningModal.set(false)">Cancel</button>
+      </div>
+    </div>
+  </div>
+}

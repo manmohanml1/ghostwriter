@@ -12,6 +12,9 @@ v0.2.0  AI 3-way hypothesis generator, Lore Bible, and Choose-Your-Own-Adventure
 v0.3.0  Full 1,500w+ webnovel chapter expansion, e-reader themes, and novel manuscript export
 v0.4.0  Cascading tri-provider AI failover (Gemini -> Groq -> Offline) and quota telemetry
 v0.5.0  4-Environment matrix, GitHub remote CI/CD, Supabase schema, and verified Vercel hosting
+v0.5.1  Cascade pruning, in-place cloud sync, parent divergence warning, and 1-click undo snapshot
+v0.5.2  Security hardening, masked backend credentials, and dynamic version badge binding
+v0.5.3  Pure dynamic synthesis engine, thematic scene weaver, Gemini 3.6 discovery, and mobile bottom sheet drawer
 v0.6.0  1-Click public story showcase links (/story/:slug) and standalone reader player
 v0.7.0  Community story gallery and reader bookmarks
 v0.8.0  ePub & print-ready PDF publishing suite

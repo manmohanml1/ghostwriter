@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject, effect } from '@angular/core';
-import { StoryTree, TreeNode, TreeEdge, AuthorType, ViewMode, ReaderTheme, LoreEntity, StoryStyleConfig, AIBranchSuggestion, ChapterGenerationOptions } from '../models/graph.models';
+import { StoryTree, TreeNode, TreeEdge, AuthorType, ViewMode, ReaderTheme, LoreEntity, StoryStyleConfig, AIBranchSuggestion, ChapterGenerationOptions, DiscoveredEntity, StoryScope, ProtagonistProfile } from '../models/graph.models';
 import { NARRATIVE_STORY_TREE, ARCHITECTURE_DECISION_TREE } from '../fixtures/starter-trees';
 import { AIGeneratorService } from '../services/ai-generator.service';
 import { SupabaseService } from '../services/supabase.service';
@@ -63,13 +63,22 @@ export class TreeStore {
   readonly readerFontSize = signal<number>(17);
 
   // Lore & Style Signals
-  readonly loreBible = signal<LoreEntity[]>(this.currentTree().loreBible || DEFAULT_LORE);
+  readonly loreBible = signal<LoreEntity[]>(
+    this.currentTree().loreBible ?? (this.currentTree().id === NARRATIVE_STORY_TREE.id ? DEFAULT_LORE : [])
+  );
   readonly styleConfig = signal<StoryStyleConfig>(this.currentTree().styleConfig || DEFAULT_STYLE);
+  readonly isLoreGenModalOpen = signal<boolean>(false);
+  readonly isExtractingLore = signal<boolean>(false);
+  readonly extractedLoreSuggestions = signal<LoreEntity[]>([]);
 
   readonly canUndoAI = computed<boolean>(() => {
     const prev = this.previousChapterContent();
     const active = this.selectedNode();
     return prev !== null && active !== null && prev.nodeId === active.id;
+  });
+
+  readonly canBranch = computed<boolean>(() => {
+    return this.loreBible().length > 0;
   });
 
   // Computeds
@@ -102,8 +111,11 @@ export class TreeStore {
     const trail: TreeNode[] = [];
     const tree: StoryTree = this.currentTree();
     let currentId: string | null = this.selectedNodeId();
+    const visited = new Set<string>();
 
     while (currentId && tree.nodes[currentId]) {
+      if (visited.has(currentId)) break; // Cycle guard: prevent infinite loop
+      visited.add(currentId);
       const node: TreeNode = tree.nodes[currentId];
       trail.unshift(node);
       currentId = node.parentNodeId;
@@ -161,6 +173,7 @@ export class TreeStore {
     if (this.currentTree().nodes[nodeId]) {
       this.selectedNodeId.set(nodeId);
       this.activeAiSuggestions.set([]);
+      this.isLoreGenModalOpen.set(false);
     }
   }
 
@@ -262,8 +275,10 @@ export class TreeStore {
         this.styleConfig()
       );
 
-      const newContent = active.content + addition;
-      const wordCount = newContent.trim().split(/\s+/).length;
+      const cleanAddition = addition.trim();
+      const currentContent = active.content.trim();
+      const newContent = currentContent ? `${currentContent}\n\n${cleanAddition}` : cleanAddition;
+      const wordCount = newContent.split(/\s+/).filter(Boolean).length;
       this.updateNode(active.id, {
         content: newContent,
         wordCount,
@@ -289,19 +304,43 @@ export class TreeStore {
     }
   }
 
+  checkLoreGateAndPrompt(): boolean {
+    if (this.canBranch()) return true;
+
+    // Prompt user to extract lore only if chapter prose is written
+    const active = this.selectedNode();
+    if (active && active.content && active.content.trim().length >= 10) {
+      this.extractLoreFromActiveChapter();
+    }
+    return false;
+  }
+
   async generate3AIPaths(): Promise<void> {
     const active = this.selectedNode();
     if (!active) return;
 
+    if (!this.checkLoreGateAndPrompt()) {
+      return;
+    }
+
     this.isGeneratingAI.set(true);
     try {
+      const directChildren = Object.values(this.currentTree().nodes).filter(
+        n => n.parentNodeId === active.id && n.status !== 'PRUNED'
+      );
+
       const suggestions = await this.aiService.generateThreeBranches(
         active,
         this.breadcrumbTrail(),
+        directChildren,
         this.loreBible(),
         this.styleConfig()
       );
-      this.activeAiSuggestions.set(suggestions);
+      const tagged = suggestions.map(s => ({
+        ...s,
+        sourceNodeId: active.id
+      }));
+      this.activeAiSuggestions.set(tagged);
     } catch (err) {
       console.error('Failed to generate AI branches:', err);
     } finally {
@@ -309,23 +348,25 @@ export class TreeStore {
     }
   }
 
-  applyAISuggestion(parentNodeId: string, suggestion: AIBranchSuggestion): TreeNode {
+  applyAISuggestion(fallbackParentNodeId: string, suggestion: AIBranchSuggestion): TreeNode {
+    const targetParentId = suggestion.sourceNodeId || fallbackParentNodeId;
     const createdNode = this.addBranch(
-      parentNodeId,
+      targetParentId,
       suggestion.title,
       suggestion.content,
       'AGENT',
       suggestion.persona,
-      false
+      true
     );
     this.activeAiSuggestions.update(list => list.filter(s => s.title !== suggestion.title));
     return createdNode;
   }
 
-  applyAllAISuggestions(parentNodeId: string): void {
+  applyAllAISuggestions(fallbackParentNodeId: string): void {
     const suggestions = this.activeAiSuggestions();
     suggestions.forEach(s => {
-      this.addBranch(parentNodeId, s.title, s.content, 'AGENT', s.persona, false);
+      const targetParentId = s.sourceNodeId || fallbackParentNodeId;
+      this.addBranch(targetParentId, s.title, s.content, 'AGENT', s.persona, false);
     });
     this.activeAiSuggestions.set([]);
   }
@@ -338,6 +379,11 @@ export class TreeStore {
     agentPersona?: string,
     selectCreatedNode: boolean = true
   ): TreeNode {
+    if (!this.canBranch()) {
+      this.checkLoreGateAndPrompt();
+      throw new Error('Lore Anchor Required: Please establish at least 1 character or location in your Lore Bible before creating branches.');
+    }
+
     const tree = this.currentTree();
     const parent = tree.nodes[parentNodeId];
     if (!parent) {
@@ -392,6 +438,26 @@ export class TreeStore {
       this.selectedNodeId.set(newNodeId);
     }
     this.saveToStorage(updatedTree);
+
+    // Background asynchronous chapter summary caching for token conservation
+    if (!parent.summary && parent.content && parent.content.length > 50) {
+      this.aiService.summarizeChapter(parent).then(sum => {
+        if (sum) {
+          const t = this.currentTree();
+          if (t.nodes[parentNodeId] && !t.nodes[parentNodeId].summary) {
+            const updated = {
+              ...t,
+              nodes: {
+                ...t.nodes,
+                [parentNodeId]: { ...t.nodes[parentNodeId], summary: sum }
+              }
+            };
+            this.currentTree.set(updated);
+            this.saveToStorage(updated);
+          }
+        }
+      }).catch(() => {});
+    }
 
     return newNode;
   }
@@ -525,18 +591,14 @@ export class TreeStore {
     const tree = this.currentTree();
     if (nodeId === tree.rootNodeId) return;
 
-    const updatedNodes = { ...tree.nodes };
-    delete updatedNodes[nodeId];
+    // Recursively collect all descendant IDs to delete
+    const allIdsToDelete = new Set([nodeId, ...this.getAllDescendantIds(nodeId, tree)]);
 
-    // Remove child connections
-    Object.values(updatedNodes).forEach(n => {
-      if (n.parentNodeId === nodeId) {
-        delete updatedNodes[n.id];
-      }
-    });
+    const updatedNodes = { ...tree.nodes };
+    allIdsToDelete.forEach(id => delete updatedNodes[id]);
 
     const updatedEdges = tree.edges.filter(
-      e => e.sourceNodeId !== nodeId && e.targetNodeId !== nodeId
+      e => !allIdsToDelete.has(e.sourceNodeId) && !allIdsToDelete.has(e.targetNodeId)
     );
 
     const updatedTree: StoryTree = {
@@ -591,7 +653,9 @@ export class TreeStore {
     Object.values(updatedNodes).forEach(n => {
       if (n.parentNodeId === targetNode.parentNodeId) {
         if (n.id === nodeId) {
-          updatedNodes[n.id] = { ...n, status: 'CANON_PATH', updatedAt: new Date().toISOString() };
+          // Strip the "Path X: " prefix from the title when promoting to canon
+          const cleanTitle = n.title.replace(/^Path [A-Z]:\s*/i, '');
+          updatedNodes[n.id] = { ...n, title: cleanTitle, status: 'CANON_PATH', updatedAt: new Date().toISOString() };
         } else if (n.status === 'CANON_PATH') {
           updatedNodes[n.id] = { ...n, status: 'ACTIVE', updatedAt: new Date().toISOString() };
         }
@@ -611,21 +675,40 @@ export class TreeStore {
     this.saveToStorage(updatedTree);
   }
 
-  createNewStory(title = 'Untitled Story', genre: StoryStyleConfig['genre'] = 'Cyberpunk', premise = 'Begin writing your opening scene here...'): void {
+  async createNewStory(
+    title: string,
+    genre: StoryStyleConfig['genre'] = 'Cyberpunk',
+    tone: StoryStyleConfig['tone'] = 'Gritty & Dark',
+    customPremise?: string,
+    storyScope: StoryScope = 'MEDIUM',
+    protagonist?: ProtagonistProfile
+  ): Promise<void> {
     const storyId = 'story-' + Date.now();
     const rootNodeId = 'node-' + Math.random().toString(36).substring(2, 9);
+
+    const inception = await this.aiService.generateStoryInception({
+      title,
+      genre,
+      tone,
+      scope: storyScope,
+      premise: customPremise,
+      protagonist
+    });
+
+    const rootContent = inception.openingHook;
+    const initialLore = inception.initialLore || [];
 
     const rootNode: TreeNode = {
       id: rootNodeId,
       treeId: storyId,
       parentNodeId: null,
       title: 'Chapter 1: The Beginning',
-      content: premise,
+      content: rootContent,
       authorType: 'HUMAN',
       status: 'CANON_PATH',
       coherenceScore: 100,
       depth: 0,
-      wordCount: premise.split(/\s+/).filter(Boolean).length,
+      wordCount: rootContent.split(/\s+/).filter(Boolean).length,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -640,12 +723,13 @@ export class TreeStore {
         [rootNodeId]: rootNode
       },
       edges: [],
-      loreBible: [],
+      loreBible: initialLore,
       styleConfig: {
         genre,
         pacing: 'Balanced',
-        tone: 'Gritty & Dark',
-        dialogueDensity: 'Balanced'
+        tone,
+        dialogueDensity: 'Balanced',
+        storyScope
       },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -654,22 +738,78 @@ export class TreeStore {
 
     this.currentTree.set(newTree);
     this.selectedNodeId.set(rootNodeId);
+    this.loreBible.set(initialLore);
+    this.styleConfig.set(newTree.styleConfig!);
+    this.activeAiSuggestions.set([]);
+    this.previousChapterContent.set(null);
     this.saveToStorage(newTree);
   }
 
   resetToDemoStory(): void {
     this.currentTree.set(NARRATIVE_STORY_TREE);
     this.selectedNodeId.set(NARRATIVE_STORY_TREE.rootNodeId);
+    this.loreBible.set(NARRATIVE_STORY_TREE.loreBible || DEFAULT_LORE);
+    this.styleConfig.set(NARRATIVE_STORY_TREE.styleConfig || DEFAULT_STYLE);
+    this.previousChapterContent.set(null);
     this.saveToStorage(NARRATIVE_STORY_TREE);
   }
 
   addLoreEntity(entity: Omit<LoreEntity, 'id'>): void {
     const newEntity: LoreEntity = {
       ...entity,
-      id: `lore-${Date.now()}`
+      id: `lore-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`
     };
     this.loreBible.update(list => [...list, newEntity]);
     this.saveToStorage(this.currentTree());
+  }
+
+  batchAddLoreEntities(entities: LoreEntity[]): void {
+    this.loreBible.update(existing => {
+      const existingIds = new Set(existing.map(e => e.id));
+      const existingNames = new Set(existing.map(e => e.name.toLowerCase().trim()));
+      
+      const newItems = entities.filter(e => {
+        return !existingIds.has(e.id) && !existingNames.has(e.name.toLowerCase().trim());
+      });
+      return [...existing, ...newItems];
+    });
+    this.saveToStorage(this.currentTree());
+  }
+
+  batchAddDiscoveredEntities(entities: DiscoveredEntity[]): void {
+    const formatted: LoreEntity[] = entities.map((e, idx) => ({
+      id: `lore-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+      name: e.name,
+      category: e.category,
+      description: e.description,
+      traits: e.traits
+    }));
+    this.batchAddLoreEntities(formatted);
+  }
+
+  async extractLoreFromActiveChapter(): Promise<void> {
+    const node = this.selectedNode();
+    if (!node || !node.content || node.content.trim().length === 0) return;
+
+    this.isExtractingLore.set(true);
+    try {
+      const style = this.styleConfig();
+      const suggestions = await this.aiService.generateLoreBibleFromProse(
+        node.content,
+        style.genre,
+        style.tone
+      );
+      this.extractedLoreSuggestions.set(suggestions);
+      this.isLoreGenModalOpen.set(true);
+    } catch (err) {
+      console.error('Failed to extract lore from chapter prose:', err);
+    } finally {
+      this.isExtractingLore.set(false);
+    }
+  }
+
+  closeLoreGenModal(): void {
+    this.isLoreGenModalOpen.set(false);
   }
 
   removeLoreEntity(id: string): void {
@@ -683,15 +823,29 @@ export class TreeStore {
   }
 
   exportNovelManuscript(): string {
-    const trail = this.breadcrumbTrail();
     const style = this.styleConfig();
     const tree = this.currentTree();
+
+    // Walk the canon chain from root instead of the active breadcrumb trail
+    const canonTrail: TreeNode[] = [];
+    let currentId: string | null = tree.rootNodeId;
+    const visited = new Set<string>();
+
+    while (currentId && tree.nodes[currentId]) {
+      if (visited.has(currentId)) break;
+      visited.add(currentId);
+      canonTrail.push(tree.nodes[currentId]);
+      // Find the CANON_PATH child at this depth, fall back to first ACTIVE child
+      const children = Object.values(tree.nodes).filter(n => n.parentNodeId === currentId && n.status !== 'PRUNED');
+      const canonChild = children.find(c => c.status === 'CANON_PATH');
+      currentId = canonChild?.id || children[0]?.id || null;
+    }
 
     let manuscript = `# ${tree.title}\n\n`;
     manuscript += `*Genre: ${style.genre} | Tone: ${style.tone}*\n\n`;
     manuscript += `---\n\n`;
 
-    trail.forEach((chapter, idx) => {
+    canonTrail.forEach((chapter, idx) => {
       manuscript += `## Chapter ${idx + 1}: ${chapter.title}\n\n`;
       manuscript += `${chapter.content}\n\n`;
       manuscript += `---\n\n`;
@@ -710,9 +864,32 @@ export class TreeStore {
   }
 
   loadCloudStory(story: StoryTree): void {
-    this.currentTree.set(story);
-    this.selectedNodeId.set(story.rootNodeId || Object.keys(story.nodes)[0] || '');
-    this.saveToStorage(story);
+    // Reconcile canon paths: ensure at most 1 CANON_PATH sibling per parent
+    const reconciledNodes = { ...story.nodes };
+    const parentGroups = new Map<string, string[]>();
+    Object.values(reconciledNodes).forEach(n => {
+      if (n.parentNodeId && n.status === 'CANON_PATH') {
+        const group = parentGroups.get(n.parentNodeId) || [];
+        group.push(n.id);
+        parentGroups.set(n.parentNodeId, group);
+      }
+    });
+    parentGroups.forEach(canonIds => {
+      if (canonIds.length > 1) {
+        // Keep the first, demote the rest
+        canonIds.slice(1).forEach(id => {
+          reconciledNodes[id] = { ...reconciledNodes[id], status: 'ACTIVE' };
+        });
+      }
+    });
+    const reconciledStory = { ...story, nodes: reconciledNodes };
+
+    this.currentTree.set(reconciledStory);
+    this.selectedNodeId.set(reconciledStory.rootNodeId || Object.keys(reconciledStory.nodes)[0] || '');
+    this.loreBible.set(reconciledStory.loreBible || []);
+    this.styleConfig.set(reconciledStory.styleConfig || DEFAULT_STYLE);
+    this.previousChapterContent.set(null);
+    this.saveToStorage(reconciledStory);
   }
 
   private saveToStorage(tree: StoryTree): void {

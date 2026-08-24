@@ -1,0 +1,79 @@
+<div class="lore-panel">
+  <div class="lore-header">
+    <div>
+      <h4 class="lore-title">📜 World Lore & Character Bible</h4>
+      <p class="lore-desc">Grounds the AI so continuations preserve established facts.</p>
+    </div>
+    <div class="header-actions">
+      <button 
+        class="btn-ai-extract" 
+        [disabled]="store.isExtractingLore()"
+        (click)="store.extractLoreFromActiveChapter()"
+        title="Analyze active chapter prose and auto-generate lore entities"
+      >
+        @if (store.isExtractingLore()) { ⏳ Analyzing Scene... }
+        @else { ✨ AI Extract Lore }
+      </button>
+      <button class="btn-add-lore" (click)="showAddModal.set(true)">＋ Add Entity</button>
+    </div>
+  </div>
+
+  <!-- Empty State with One-Click AI Extraction -->
+  @if (store.loreBible().length === 0) {
+    <div class="lore-empty-card">
+      <span class="empty-icon">📖</span>
+      <h5>No Lore Entities Yet</h5>
+      <p>Write your opening scene in the chapter editor, then click below to let AI automatically discover your characters and world setting.</p>
+      <button 
+        class="btn-ai-generate-empty"
+        [disabled]="store.isExtractingLore()"
+        (click)="store.extractLoreFromActiveChapter()"
+      >
+        @if (store.isExtractingLore()) { ⏳ Extracting Characters & Lore... }
+        @else { ✨ Generate Lore Bible from Scene }
+      </button>
+    </div>
+  }
+
+  <!-- Lore Entities List -->
+  <div class="lore-list">
+    @for (entity of store.loreBible(); track entity.id) {
+      <div class="lore-card" [attr.data-cat]="entity.category">
+        <div class="card-header">
+          <span class="category-badge">{{ getCategoryEmoji(entity.category) }} {{ entity.category }}</span>
+          <button class="btn-delete" (click)="store.removeLoreEntity(entity.id)" title="Delete Entity">✕</button>
+        </div>
+        <h5 class="entity-name">{{ entity.name }}</h5>
+        <p class="entity-desc">{{ entity.description }}</p>
+        <div class="traits-row">
+          @for (trait of entity.traits; track $index) {
+            <span class="trait-pill">{{ trait }}</span>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Add Lore Modal / Box -->
+  @if (showAddModal()) {
+    <div class="add-box">
+      <h5 class="add-title">Add Lore Entity</h5>
+      <div class="form-row">
+        <input type="text" [(ngModel)]="newName" placeholder="Entity Name (e.g. Detective Kael)" class="lore-input" />
+        <select [(ngModel)]="newCategory" class="lore-select">
+          <option value="CHARACTER">👤 Character</option>
+          <option value="ITEM">🗝 Item / Relic</option>
+          <option value="LOCATION">📍 Location</option>
+          <option value="FACTION">🛡 Faction / Corp</option>
+        </select>
+      </div>
+      <textarea [(ngModel)]="newDesc" rows="2" placeholder="Description and background facts..." class="lore-textarea"></textarea>
+      <input type="text" [(ngModel)]="newTraits" placeholder="Traits (comma-separated, e.g. Cyber-arm, Veteran)" class="lore-input" />
+
+      <div class="flex gap-2 justify-end mt-2">
+        <button class="btn-cancel" (click)="showAddModal.set(false)">Cancel</button>
+        <button class="btn-save" (click)="saveEntity()">Save to Bible</button>
+      </div>
+    </div>
+  }
+</div>

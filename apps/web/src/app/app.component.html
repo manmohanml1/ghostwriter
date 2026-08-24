@@ -1,0 +1,176 @@
+<div class="app-layout">
+  <app-header 
+    (openSettingsEvent)="openSettingsModal()" 
+    (openAuthEvent)="showAuthModal.set(true)"
+    (openMobileMenuEvent)="showMobileMenu.set(true)"
+  />
+
+  <main class="main-workspace">
+    @if (store.activeViewMode() === 'CANVAS') {
+      <app-tree-canvas class="canvas-area" />
+      <app-node-inspector />
+    } @else {
+      <app-story-reader class="w-full h-full" />
+    }
+  </main>
+
+  <!-- AI WORLD LORE & CHARACTER BIBLE GENERATION MODAL -->
+  <app-lore-generation-modal />
+
+  <!-- AUTH / CLOUD SYNC MODAL -->
+  @if (showAuthModal()) {
+    <app-auth-modal (closeModal)="showAuthModal.set(false)" />
+  }
+
+  <!-- GLOBAL AI SETTINGS MODAL -->
+  @if (showSettingsModal()) {
+    <div class="global-modal-backdrop" (click)="showSettingsModal.set(false)">
+      <div class="global-modal-box" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3 class="modal-title">⚙️ AI Multi-Provider & Rate Limit Defense</h3>
+          <button class="btn-modal-close" (click)="showSettingsModal.set(false)">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="failover-notice-box">
+            <span class="notice-icon">🛡️</span>
+            <p class="text-xs text-purple-200">
+              <strong>Tri-Provider Auto-Failover Active</strong>: If Gemini is rate-limited (HTTP 429), Ghostwriter automatically routes to Groq, and falls back to the Smart Offline Engine.
+            </p>
+          </div>
+
+          <!-- Provider 1: Google Gemini -->
+          <div class="provider-config-card">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-bold text-xs text-slate-200">1. Google AI Studio (Gemini)</span>
+              <button class="btn-test-conn" (click)="testProvider('GEMINI')">Test Connection ⚡</button>
+            </div>
+            <input 
+              type="password" 
+              [(ngModel)]="geminiKeyInput" 
+              placeholder="AIzaSy... (Gemini API Key)" 
+              class="input-key mb-1.5"
+            />
+            <div class="flex items-center gap-2 mt-1">
+              <label class="text-xxs text-slate-400 whitespace-nowrap">Model:</label>
+              <select [(ngModel)]="geminiModelInput" class="select-pref text-xs py-1">
+                @for (m of availableGeminiModels(); track m.id) {
+                  <option [value]="m.id">{{ m.name }}</option>
+                }
+              </select>
+            </div>
+            @if (geminiTestResult()) {
+              <p class="test-result-msg mt-1.5" [class.success]="geminiTestResult()?.success">
+                {{ geminiTestResult()?.message }}
+              </p>
+            }
+          </div>
+
+          <!-- Provider 2: Groq -->
+          <div class="provider-config-card">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-bold text-xs text-slate-200">2. Groq LPUs (Fast Multi-Model)</span>
+              <button class="btn-test-conn" (click)="testProvider('GROQ')">Test Connection ⚡</button>
+            </div>
+            <input 
+              type="password" 
+              [(ngModel)]="groqKeyInput" 
+              placeholder="gsk_... (Groq API Key)" 
+              class="input-key mb-1.5"
+            />
+            <div class="flex items-center gap-2 mt-1">
+              <label class="text-xxs text-slate-400 whitespace-nowrap">Model:</label>
+              <select [(ngModel)]="groqModelInput" class="select-pref text-xs py-1">
+                @for (m of availableGroqModels(); track m.id) {
+                  <option [value]="m.id">{{ m.name }}</option>
+                }
+              </select>
+            </div>
+            @if (groqTestResult()) {
+              <p class="test-result-msg mt-1.5" [class.success]="groqTestResult()?.success">
+                {{ groqTestResult()?.message }}
+              </p>
+            }
+          </div>
+
+          <!-- Preferred Provider -->
+          <div class="form-group mt-2">
+            <label class="form-label">Preferred Primary Provider</label>
+            <select [(ngModel)]="preferredProviderInput" class="select-pref">
+              <option value="GEMINI">Google Gemini (Selected Model)</option>
+              <option value="GROQ">Groq Llama 3.3 70B (Primary)</option>
+              <option value="OFFLINE">Smart Offline Engine ($0 Cost, Infinite)</option>
+            </select>
+          </div>
+
+          <p class="text-xxs text-slate-400 mt-2">
+            All API keys are encrypted strictly in your local browser storage and never transmitted to third-party databases.
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-secondary" (click)="clearAllKeys()">Clear All Keys</button>
+          <button class="btn-primary" [disabled]="isTestingOnSave()" (click)="saveAllSettings()">
+            {{ isTestingOnSave() ? '⏳ Testing & Verifying...' : 'Save Configuration' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ROOT LEVEL MOBILE SLIDE-OVER DRAWER -->
+  @if (showMobileMenu()) {
+    <div class="mobile-drawer-backdrop" (click)="showMobileMenu.set(false)">
+      <div class="mobile-drawer" (click)="$event.stopPropagation()">
+        <div class="drawer-header">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">✍️</span>
+            <span class="font-bold text-sm text-white">Ghostwriter Menu</span>
+          </div>
+          <button class="btn-drawer-close" (click)="showMobileMenu.set(false)">✕</button>
+        </div>
+
+        <div class="drawer-content">
+          <!-- Story Management -->
+          <div class="drawer-section">
+            <span class="drawer-section-title">Story Workspace</span>
+            <button class="drawer-item-btn primary" (click)="startNewStoryPrompt(); showMobileMenu.set(false)">
+              <span>✨</span> + New Story from Scratch
+            </button>
+            <button class="drawer-item-btn" (click)="resetToDemo(); showMobileMenu.set(false)">
+              <span>🌆</span> Load Cyberpunk Demo
+            </button>
+          </div>
+
+          <!-- Style Controls -->
+          <div class="drawer-section">
+            <span class="drawer-section-title">Genre & Style Controls</span>
+            <app-style-controls />
+          </div>
+
+          <!-- Cloud & AI -->
+          <div class="drawer-section">
+            <span class="drawer-section-title">Cloud & AI Settings</span>
+            <button class="drawer-item-btn" (click)="showAuthModal.set(true); showMobileMenu.set(false)">
+              <span>☁️</span> {{ supabase.isAuthenticated() ? 'Account: ' + supabase.currentUser()?.email : 'Connect Supabase Cloud' }}
+            </button>
+            <button class="drawer-item-btn" (click)="openSettingsModal(); showMobileMenu.set(false)">
+              <span>⚙️</span> Configure AI Keys (Gemini / Groq)
+            </button>
+          </div>
+
+          <!-- Export -->
+          <div class="drawer-section">
+            <span class="drawer-section-title">Export Options</span>
+            <button class="drawer-item-btn" (click)="downloadNovelManuscript(); showMobileMenu.set(false)">
+              <span>📖</span> Export Novel Manuscript (.md)
+            </button>
+            <button class="drawer-item-btn" (click)="downloadTreeJson(); showMobileMenu.set(false)">
+              <span>💾</span> Export Story Tree Backup (.json)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

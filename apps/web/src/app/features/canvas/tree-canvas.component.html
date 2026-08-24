@@ -1,0 +1,119 @@
+<div 
+  #canvasContainer
+  class="canvas-viewport"
+  (mousedown)="onPanStart($event)"
+  (mousemove)="onPanMove($event)"
+  (mouseup)="onPanEnd()"
+  (mouseleave)="onPanEnd()"
+  (touchstart)="onTouchStart($event)"
+  (touchmove)="onTouchMove($event)"
+  (touchend)="onTouchEnd()"
+  (wheel)="onWheel($event)"
+  tabindex="0"
+  (keydown)="onKeyDown($event)"
+>
+  <!-- Canvas Navigation Controls Overlay -->
+  <div class="canvas-controls">
+    <button class="btn-control" (click)="zoomIn()" title="Zoom In">+</button>
+    <span class="zoom-indicator">{{ (store.zoomLevel() * 100) | number:'1.0-0' }}%</span>
+    <button class="btn-control" (click)="zoomOut()" title="Zoom Out">-</button>
+    <button class="btn-control btn-fit" (click)="resetView()" title="Fit View">⛶ Fit</button>
+  </div>
+
+  <!-- Graph Surface Container with Scale & Pan -->
+  <div 
+    class="canvas-surface"
+    [style.transform]="'translate(' + panX() + 'px, ' + panY() + 'px) scale(' + store.zoomLevel() + ')'"
+  >
+    <!-- SVG Connecting Curves Layer -->
+    <svg class="edges-layer" width="4000" height="3000">
+      <defs>
+        <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#6366f1" stop-opacity="0.8" />
+          <stop offset="100%" stop-color="#a855f7" stop-opacity="0.9" />
+        </linearGradient>
+        <linearGradient id="canonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#eab308" stop-opacity="0.9" />
+          <stop offset="100%" stop-color="#facc15" stop-opacity="1" />
+        </linearGradient>
+        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+      </defs>
+
+      @for (edge of computedEdges(); track edge.id) {
+        <path
+          [attr.d]="edge.path"
+          class="edge-path"
+          [class.edge-canon]="edge.target.status === 'CANON_PATH'"
+          [class.edge-pruned]="edge.target.status === 'PRUNED'"
+        />
+        @if (edge.label) {
+          <g class="edge-label-group">
+            <rect
+              [attr.x]="edge.labelX - 60"
+              [attr.y]="edge.labelY - 10"
+              width="120"
+              height="20"
+              rx="10"
+              class="edge-label-bg"
+            />
+            <text
+              [attr.x]="edge.labelX"
+              [attr.y]="edge.labelY + 4"
+              class="edge-label"
+            >
+              {{ edge.label }}
+            </text>
+          </g>
+        }
+      }
+    </svg>
+
+    <!-- HTML Node Cards Layer -->
+    <div class="nodes-layer">
+      @for (node of computedNodes(); track node.id) {
+        <div
+          class="node-card"
+          [class.selected]="store.selectedNodeId() === node.id"
+          [class.canon]="node.status === 'CANON_PATH'"
+          [class.pruned]="node.status === 'PRUNED'"
+          [class.exploring]="node.status === 'EXPLORING'"
+          [style.left.px]="node.x"
+          [style.top.px]="node.y"
+          (click)="onNodeClick($event, node.id)"
+        >
+          <!-- Card Header / Author Badge -->
+          <div class="node-header">
+            <span class="author-badge" [attr.data-author]="node.authorType">
+              @if (node.authorType === 'AGENT') { 🤖 {{ node.agentPersona || 'Co-Writer' }} }
+              @else if (node.authorType === 'SYSTEM') { ⚡ Story Synthesis }
+              @else { ✍️ Author }
+            </span>
+
+            @if (node.coherenceScore !== null && node.status !== 'PRUNED') {
+              <span class="score-badge" [class.high-score]="node.coherenceScore >= 85">
+                ★ {{ node.coherenceScore }}%
+              </span>
+            }
+          </div>
+
+          <!-- Node Title -->
+          <h3 class="node-title">{{ node.title }}</h3>
+
+          <!-- Markdown Snippet Preview -->
+          <p class="node-preview">{{ getPreviewText(node.content) }}</p>
+
+          <!-- Node Footer / Depth & Quick Actions -->
+          <div class="node-footer">
+            <span class="depth-tag">Chapter {{ node.depth + 1 }}</span>
+            @if (node.status === 'CANON_PATH') {
+              <span class="canon-tag">⭐ Canon Path</span>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>

@@ -1,0 +1,197 @@
+<div class="reader-viewport" [attr.data-theme]="store.readerTheme()">
+  <!-- Top Webnovel E-Reader Header -->
+  <header class="reader-header">
+    <div class="header-left">
+      <button class="btn-back" (click)="store.setViewMode('CANVAS')" title="Return to Story Graph">
+        ← Studio Canvas
+      </button>
+      <div class="story-meta">
+        <h2 class="story-title">{{ store.currentTree().title }}</h2>
+        <span class="genre-tag">{{ store.styleConfig().genre }} • {{ store.styleConfig().tone }}</span>
+      </div>
+    </div>
+
+    <!-- Center: Webnovel Customization Toolbar -->
+    <div class="reader-toolbar">
+      <!-- Theme Switcher -->
+      <div class="theme-picker">
+        <button 
+          class="theme-dot dot-slate" 
+          [class.active]="store.readerTheme() === 'DARK_SLATE'"
+          (click)="store.setReaderTheme('DARK_SLATE')"
+          title="Dark Slate Theme"
+        ></button>
+        <button 
+          class="theme-dot dot-oled" 
+          [class.active]="store.readerTheme() === 'OLED_BLACK'"
+          (click)="store.setReaderTheme('OLED_BLACK')"
+          title="OLED Pure Black Theme"
+        ></button>
+        <button 
+          class="theme-dot dot-sepia" 
+          [class.active]="store.readerTheme() === 'WARM_SEPIA'"
+          (click)="store.setReaderTheme('WARM_SEPIA')"
+          title="Warm Vintage Sepia Theme"
+        ></button>
+        <button 
+          class="theme-dot dot-paper" 
+          [class.active]="store.readerTheme() === 'NOVEL_PAPER'"
+          (click)="store.setReaderTheme('NOVEL_PAPER')"
+          title="Paper Light Theme"
+        ></button>
+      </div>
+
+      <!-- Font Size Adjuster -->
+      <div class="font-controls">
+        <button class="btn-font" (click)="decreaseFont()" title="Decrease font size">A-</button>
+        <span class="font-indicator">{{ store.readerFontSize() }}px</span>
+        <button class="btn-font" (click)="increaseFont()" title="Increase font size">A+</button>
+      </div>
+
+      <!-- Table of Contents Toggle -->
+      <button 
+        class="btn-toc" 
+        [class.active]="showToc()"
+        (click)="toggleToc()"
+        title="Table of Contents"
+      >
+        📑 Chapters ({{ store.breadcrumbTrail().length }})
+      </button>
+    </div>
+
+    <div class="header-right">
+      <span class="word-count-badge">
+        📚 {{ store.totalStoryWordCount() }} words total
+      </span>
+    </div>
+  </header>
+
+  <!-- Main Webnovel Flow & Drawer Container -->
+  <div class="reader-layout-body">
+    <!-- Table of Contents Sidebar Drawer -->
+    @if (showToc()) {
+      <aside class="toc-drawer">
+        <div class="toc-header">
+          <h4 class="toc-title">Table of Contents</h4>
+          <button class="btn-close-toc" (click)="closeToc()">✕</button>
+        </div>
+        <div class="toc-list">
+          @for (chapter of store.breadcrumbTrail(); track chapter.id; let idx = $index; let last = $last) {
+            <div 
+              class="toc-item"
+              [class.active]="last"
+              (click)="selectChapter(chapter.id)"
+            >
+              <span class="toc-chapter-num">Ch {{ idx + 1 }}</span>
+              <div class="toc-item-meta">
+                <span class="toc-item-title">{{ chapter.title }}</span>
+                <span class="toc-item-words">{{ getWordCount(chapter.content) }}w</span>
+              </div>
+            </div>
+          }
+        </div>
+      </aside>
+    }
+
+    <!-- Main Reading Flow -->
+    <main class="reader-container">
+      <article class="prose-container" [style.fontSize.px]="store.readerFontSize()">
+        <!-- Render Trail of Past Chapters -->
+        @for (chapter of store.breadcrumbTrail(); track chapter.id; let last = $last; let idx = $index) {
+          <section 
+            class="chapter-section"
+            [class.active-chapter]="last"
+            [class.past-chapter]="!last"
+          >
+            <div class="chapter-header">
+              <span class="chapter-badge">Chapter {{ idx + 1 }}</span>
+              @if (chapter.status === 'CANON_PATH') {
+                <span class="canon-badge-reader">⭐ Canon</span>
+              } @else if (chapter.depth > 0) {
+                <span class="draft-badge-reader">⚠️ Draft Branch</span>
+              }
+              <h3 class="chapter-heading">{{ chapter.title }}</h3>
+              <div class="chapter-stats">
+                <span class="stat-pill">📖 ~{{ getReadTime(chapter.content) }} min read</span>
+                <span class="stat-pill">✍️ {{ getWordCount(chapter.content) }} words</span>
+              </div>
+            </div>
+
+            <div class="chapter-body">
+              @for (paragraph of formatParagraphs(chapter.content); track $index) {
+                @if (paragraph.startsWith('###')) {
+                  <h4 class="scene-subheading">{{ paragraph.replace('###', '').trim() }}</h4>
+                } @else {
+                  <p class="prose-paragraph">{{ paragraph }}</p>
+                }
+              }
+            </div>
+
+            @if (!last) {
+              <div class="chapter-divider">
+                <span class="divider-line"></span>
+                <button class="btn-rewind" (click)="store.selectNode(chapter.id)">Rewind to this chapter ↺</button>
+                <span class="divider-line"></span>
+              </div>
+            }
+          </section>
+        }
+
+        <!-- Branching Decisions / Next Path Selection -->
+        <div class="decision-fork-section">
+          <h4 class="fork-title">✨ Where does the story branch next?</h4>
+
+          @if (store.activeChildren().length > 0) {
+            <div class="choices-grid">
+              @for (choice of store.activeChildren(); track choice.id) {
+                <div 
+                  class="choice-card"
+                  [class.canon-choice]="choice.status === 'CANON_PATH'"
+                  (click)="store.selectNode(choice.id)"
+                >
+                  <div class="choice-header">
+                    <span class="choice-persona">
+                      @if (choice.authorType === 'AGENT') { 🤖 {{ choice.agentPersona || 'Co-Writer' }} }
+                      @else { 👤 Author Choice }
+                    </span>
+                    @if (choice.status === 'CANON_PATH') {
+                      <span class="canon-badge">⭐ Canon</span>
+                    }
+                  </div>
+                  <h5 class="choice-title">{{ choice.title }}</h5>
+                  <p class="choice-preview">{{ getPreviewSnippet(choice.content) }}</p>
+                  <button class="btn-choose">Continue down this path →</button>
+                </div>
+              }
+            </div>
+          } @else {
+            <!-- No Branches Yet: Prompt AI or Return to Studio -->
+            <div class="empty-fork-card">
+              <div class="empty-icon">✍️</div>
+              <h5 class="empty-title">You have reached the frontier of this timeline!</h5>
+              <p class="empty-desc">Expand this chapter with more scenes or propose 3 new AI continuations.</p>
+              <div class="flex gap-3 justify-center mt-4">
+                <button 
+                  class="btn-expand-chapter" 
+                  [disabled]="store.isExpandingChapter()"
+                  (click)="expandCurrentChapter()"
+                >
+                  @if (store.isExpandingChapter()) { ⏳ Expanding Chapter... }
+                  @else { ⚡ Expand into Full Chapter }
+                </button>
+                <button 
+                  class="btn-generate-ai" 
+                  [disabled]="store.isGeneratingAI()"
+                  (click)="store.generate3AIPaths()"
+                >
+                  @if (store.isGeneratingAI()) { ⏳ Writing... }
+                  @else { ✨ Suggest 3 AI Branches }
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </article>
+    </main>
+  </div>
+</div>

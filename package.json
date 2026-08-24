@@ -1,6 +1,6 @@
 {
   "name": "ghostwriter-monorepo",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Ghostwriter — AI Co-Writing Studio with Interactive Branching Narratives",
   "private": true,
   "workspaces": [

@@ -1,0 +1,343 @@
+<header class="app-header">
+  <!-- Left: Logo & Story Title Switcher -->
+  <div class="brand-group">
+    <div class="logo-icon" (click)="toggleStoryMenu()" title="Switch Story / Create New">✍️</div>
+    <div class="brand-text">
+      <div class="flex items-center gap-1.5">
+        <span class="brand-title">Ghostwriter</span>
+        <span class="version-badge">v{{ appVersion }}</span>
+      </div>
+      <button class="story-switcher-btn" (click)="toggleStoryMenu()" title="Click to switch story">
+        <span class="story-title-text">{{ store.currentTree().title }}</span>
+        <span class="dropdown-arrow">▾</span>
+      </button>
+    </div>
+
+    <!-- Story Dropdown Menu -->
+    @if (showStoryMenu()) {
+      <div class="story-dropdown-menu" (click)="$event.stopPropagation()">
+        <div class="dropdown-header">Story Workspace</div>
+        <button class="dropdown-item-btn primary" (click)="startNewStoryPrompt()">
+          <span>✨</span> + New Story from Scratch
+        </button>
+        <button class="dropdown-item-btn" (click)="resetToDemo()">
+          <span>🌆</span> Reset to Cyberpunk Demo
+        </button>
+
+        @if (supabase.userCloudStories().length > 0) {
+          <div class="dropdown-divider">Saved in Cloud</div>
+          @for (story of supabase.userCloudStories(); track story.id) {
+            <button class="dropdown-item-btn cloud" (click)="loadCloudStory(story.id)">
+              <span>☁️</span>
+              <div class="flex flex-col">
+                <span class="font-bold text-slate-100 text-xs">{{ story.title }}</span>
+                <span class="text-xxs text-slate-400">{{ story.genre }} • {{ story.updatedAt }}</span>
+              </div>
+            </button>
+          }
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Center: View Mode (Studio Canvas | Reader Mode) -->
+  <div class="view-mode-pill">
+    <button 
+      class="mode-btn" 
+      [class.active]="store.activeViewMode() === 'CANVAS'"
+      (click)="store.setViewMode('CANVAS')"
+    >
+      🎨 Studio Canvas
+    </button>
+    <button 
+      class="mode-btn" 
+      [class.active]="store.activeViewMode() === 'READER'"
+      (click)="store.setViewMode('READER')"
+    >
+      📖 Reader Mode
+    </button>
+  </div>
+
+  <!-- Center-Right: Genre, Pacing, Tone Style Selectors (Desktop) -->
+  <div class="desktop-style-controls">
+    <app-style-controls />
+  </div>
+
+  <!-- Right: Global Actions & Telemetry (Desktop) -->
+  <div class="desktop-actions">
+    <!-- Cloud Sync Button -->
+    <button 
+      class="action-btn cloud-sync-btn" 
+      [class.authenticated]="supabase.isAuthenticated()"
+      (click)="openAuthEvent.emit()"
+      title="Supabase Cloud Sync"
+    >
+      <span class="status-dot" [class.online]="supabase.isAuthenticated()"></span>
+      <span>{{ supabase.isAuthenticated() ? (supabase.currentUser()?.email?.split('@')?.[0] || 'Cloud Sync') : '☁️ Cloud Sync' }}</span>
+    </button>
+
+    <!-- AI Engine Health Pill -->
+    <div 
+      class="ai-telemetry-pill"
+      [attr.data-provider]="aiService.telemetry().activeProvider"
+      (click)="openSettingsEvent.emit()"
+      title="Click to configure AI Keys"
+    >
+      <span class="ai-pulse-dot"></span>
+      <span>
+        @if (aiService.telemetry().activeProvider === 'GEMINI') { ⚡ Gemini Flash }
+        @else if (aiService.telemetry().activeProvider === 'GROQ') { ⚡ Groq 70B }
+        @else { 🟣 Offline Engine }
+      </span>
+    </div>
+
+    <!-- AI Keys Settings -->
+    <button class="action-btn" (click)="openSettingsEvent.emit()" title="AI API Keys">
+      ⚙️ AI Keys
+    </button>
+
+    <!-- Export Dropdown -->
+    <div class="export-container">
+      <button class="action-btn" (click)="toggleExportMenu()" title="Export Story">
+        📥 Export ▾
+      </button>
+      @if (showExportMenu()) {
+        <div class="export-dropdown" (click)="$event.stopPropagation()">
+          <button class="export-item-btn" (click)="downloadNovelManuscript()">
+            <span>📖</span>
+            <div>
+              <div class="font-bold text-xs text-white">Novel Manuscript (.md)</div>
+              <div class="text-xxs text-slate-400">Complete linear chapter prose</div>
+            </div>
+          </button>
+          <button class="export-item-btn" (click)="downloadTreeJson()">
+            <span>💾</span>
+            <div>
+              <div class="font-bold text-xs text-white">Story Tree (.json)</div>
+              <div class="text-xxs text-slate-400">Full DAG graph & Lore Bible</div>
+            </div>
+          </button>
+        </div>
+      }
+    </div>
+
+    <!-- Inspector Toggle Button -->
+    @if (store.activeViewMode() === 'CANVAS') {
+      <button 
+        class="action-btn inspector-btn" 
+        [class.active]="store.isInspectorOpen()"
+        (click)="store.toggleInspector()" 
+        title="Toggle Inspector Sidebar"
+      >
+        📋 Inspector
+      </button>
+    }
+  </div>
+
+  <!-- Mobile Right Controls (< 1024px) -->
+  <div class="mobile-actions">
+    <!-- Quick Cloud Sync status on mobile -->
+    <button 
+      class="mobile-btn cloud-pill" 
+      [class.authenticated]="supabase.isAuthenticated()"
+      (click)="openAuthEvent.emit()" 
+      title="Cloud Sync"
+    >
+      <span class="status-dot" [class.online]="supabase.isAuthenticated()"></span>
+      <span>☁️</span>
+    </button>
+
+    @if (store.activeViewMode() === 'CANVAS') {
+      <button 
+        class="mobile-btn inspector-pill" 
+        [class.active]="store.isInspectorOpen()"
+        (click)="store.toggleInspector()" 
+        title="Toggle Chapter Editor"
+      >
+        ✍️ Edit
+      </button>
+    }
+
+    <button class="mobile-btn menu-btn" (click)="openMobileMenuEvent.emit()" title="Open Controls Menu">
+      ☰
+    </button>
+  </div>
+</header>
+
+<!-- Sleek In-App Modal: Create New Story -->
+@if (showNewStoryModal()) {
+  <div class="custom-modal-backdrop" (click)="showNewStoryModal.set(false)">
+    <div class="custom-modal-card new-story-card" (click)="$event.stopPropagation()">
+      <div class="custom-modal-header">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">✨</span>
+          <div>
+            <h3 class="custom-modal-title">Create New Story Universe</h3>
+            <p class="custom-modal-subtitle">Define your world, protagonist, and opening narrative hook.</p>
+          </div>
+        </div>
+        <button class="btn-modal-close" (click)="showNewStoryModal.set(false)">✕</button>
+      </div>
+
+      <div class="custom-modal-body modal-scroll-body">
+        <!-- Story Metadata Section -->
+        <div class="form-field">
+          <label class="field-label">Story Title</label>
+          <input 
+            type="text" 
+            class="field-input" 
+            [(ngModel)]="newStoryTitle" 
+            placeholder="e.g. The Quantum Loop"
+          />
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-field">
+            <label class="field-label">Genre</label>
+            <select class="field-select" [(ngModel)]="newStoryGenre">
+              <option value="Cyberpunk">🌆 Cyberpunk</option>
+              <option value="Noir Mystery">🕵️ Noir Mystery</option>
+              <option value="Dark Fantasy">⚔️ Dark Fantasy</option>
+              <option value="Hard Sci-Fi">🚀 Hard Sci-Fi</option>
+              <option value="Gothic Thriller">🏰 Gothic Thriller</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label class="field-label">Atmospheric Tone</label>
+            <select class="field-select" [(ngModel)]="newStoryTone">
+              <option value="Gritty & Dark">🌑 Gritty & Dark</option>
+              <option value="Dramatic">🎭 Dramatic</option>
+              <option value="Suspenseful">⏳ Suspenseful</option>
+              <option value="Whimsical">✨ Whimsical</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label class="field-label">Story Scope & Target Length</label>
+          <select class="field-select" [(ngModel)]="newStoryScope">
+            <option value="SHORT">⚡ Short-Form (~3–5 Ch: Rapid Resolution & High Stakes)</option>
+            <option value="MEDIUM">⚖️ Medium-Form (~8–15 Ch: Balanced 3-Act Webnovel Arc)</option>
+            <option value="LONG">🏛️ Long-Form Epic (~20+ Ch: Deep Worldbuilding & Expansive Cast)</option>
+          </select>
+        </div>
+
+        <!-- Protagonist (MC) Section -->
+        <div class="modal-section-divider">
+          <span class="section-tag">👤 Protagonist (Main Character)</span>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-field">
+            <label class="field-label">MC Character Name</label>
+            <input 
+              type="text" 
+              class="field-input" 
+              [(ngModel)]="mcName" 
+              placeholder="e.g. Maya Thorne, Derek"
+            />
+          </div>
+
+          <div class="form-field">
+            <label class="field-label">Gender & Pronouns</label>
+            <select class="field-select" [(ngModel)]="mcGender">
+              <option value="Male (he/him)">👨 Male (he/him)</option>
+              <option value="Female (she/her)">👩 Female (she/her)</option>
+              <option value="Non-Binary (they/them)">🧑 Non-Binary (they/them)</option>
+              <option value="Custom">✨ Other / Custom</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label class="field-label">
+            Character Personality Traits & Archetypes
+            <span class="text-xs text-purple-400 font-normal">({{ selectedTraits.length }}/5 selected)</span>
+          </label>
+          
+          <div class="trait-chips-container">
+            @for (trait of availableTraits; track trait) {
+              <button 
+                type="button"
+                class="trait-chip" 
+                [class.selected]="selectedTraits.includes(trait)"
+                (click)="toggleTrait(trait)"
+              >
+                {{ selectedTraits.includes(trait) ? '✓ ' : '+ ' }}{{ trait }}
+              </button>
+            }
+          </div>
+
+          <!-- Custom Trait Input -->
+          <div class="custom-trait-row">
+            <input 
+              type="text" 
+              class="field-input text-xs" 
+              [(ngModel)]="customTraitInput" 
+              (keyup.enter)="addCustomTrait()"
+              placeholder="+ Add custom trait (e.g. Cynical Hacker)..."
+            />
+            <button type="button" class="btn-add-trait" (click)="addCustomTrait()">Add</button>
+          </div>
+        </div>
+
+        <!-- Custom Starting Premise / Hook -->
+        <div class="form-field">
+          <label class="field-label">
+            Custom Opening Scene Pitch <span class="text-xs text-slate-400 font-normal">(Optional)</span>
+          </label>
+          <textarea 
+            class="field-textarea" 
+            [(ngModel)]="newStoryCustomPremise" 
+            rows="2"
+            placeholder="e.g. In the neon underbelly of Sector 7, Derek receives a scrambled holo-drive containing the coordinates to a ghost subway line... (or leave blank to auto-synthesize from MC profile)"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="custom-modal-footer">
+        <button class="btn-cancel" (click)="showNewStoryModal.set(false)" [disabled]="isCreatingStory()">Cancel</button>
+        <button class="btn-primary flex items-center gap-1.5" (click)="confirmCreateNewStory()" [disabled]="isCreatingStory()">
+          @if (isCreatingStory()) {
+            <span class="animate-spin text-sm">⏳</span> Incepting Universe...
+          } @else {
+            <span>✨</span> Create Story with {{ mcName || 'Protagonist' }}
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Sleek In-App Modal: Reset to Demo Story -->
+@if (showResetDemoModal()) {
+  <div class="custom-modal-backdrop" (click)="showResetDemoModal.set(false)">
+    <div class="custom-modal-card" (click)="$event.stopPropagation()">
+      <div class="custom-modal-header">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🌆</span>
+          <div>
+            <h3 class="custom-modal-title">Reset to Cyberpunk Demo?</h3>
+            <p class="custom-modal-subtitle">Reload starter story: <i>The Neon Protocol</i>.</p>
+          </div>
+        </div>
+        <button class="btn-modal-close" (click)="showResetDemoModal.set(false)">✕</button>
+      </div>
+
+      <div class="custom-modal-body">
+        <div class="warning-box">
+          <span class="warning-tag">⚠️ Warning</span>
+          <p class="warning-text">
+            Your active workspace draft will be replaced with the starter Cyberpunk demo. Make sure any personal work is synced to your cloud account first.
+          </p>
+        </div>
+      </div>
+
+      <div class="custom-modal-footer">
+        <button class="btn-cancel" (click)="showResetDemoModal.set(false)">Cancel</button>
+        <button class="btn-danger" (click)="confirmResetToDemo()">🌆 Confirm Reset</button>
+      </div>
+    </div>
+  </div>
+}

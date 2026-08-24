@@ -38,15 +38,27 @@ export interface LoreEntity {
   traits: string[];
 }
 
+export type StoryScope = 'SHORT' | 'MEDIUM' | 'LONG' | 'EPIC';
+
+export interface DiscoveredEntity {
+  name: string;
+  category: 'CHARACTER' | 'ITEM' | 'LOCATION' | 'FACTION';
+  description: string;
+  traits: string[];
+  alreadyInBible?: boolean;
+}
+
 export interface StoryStyleConfig {
-  genre: 'Cyberpunk' | 'Noir Mystery' | 'Dark Fantasy' | 'Hard Sci-Fi' | 'Gothic Thriller';
+  genre: 'Cyberpunk' | 'Noir Mystery' | 'Dark Fantasy' | 'Hard Sci-Fi' | 'Gothic Thriller' | string;
   pacing: 'Methodical' | 'Balanced' | 'Fast-Paced';
-  tone: 'Gritty & Dark' | 'Dramatic' | 'Whimsical' | 'Suspenseful';
+  tone: 'Gritty & Dark' | 'Dramatic' | 'Whimsical' | 'Suspenseful' | string;
   dialogueDensity: 'Narrative-Focused' | 'Balanced' | 'Dialogue-Heavy';
+  storyScope?: StoryScope;
 }
 
 export interface AIBranchSuggestion {
   id?: string;
+  sourceNodeId?: string;
   title: string;
   content: string;
   persona: string;
@@ -60,6 +72,7 @@ export interface TreeNode {
   parentNodeId: string | null;
   title: string;
   content: string;
+  summary?: string;
   authorType: AuthorType;
   agentPersona?: string;
   status: NodeStatus;
@@ -82,6 +95,40 @@ export interface TreeEdge {
   label?: string;
 }
 
+export interface ProtagonistProfile {
+  name: string;
+  gender: string;
+  traits: string[];
+}
+
+export interface StoryInceptionRequest {
+  title: string;
+  genre: string;
+  tone: string;
+  scope: StoryScope;
+  premise?: string;
+  protagonist?: ProtagonistProfile;
+}
+
+export interface StoryInceptionResult {
+  openingHook: string;
+  initialLore: LoreEntity[];
+}
+
+export interface SeedHookOptions {
+  title?: string;
+  genre: StoryStyleConfig['genre'];
+  tone?: StoryStyleConfig['tone'];
+  pacing?: StoryStyleConfig['pacing'];
+}
+
+export interface LoreGateStatus {
+  canBranch: boolean;
+  requiredAnchorCount: number;
+  currentAnchorCount: number;
+  message?: string;
+}
+
 export interface StoryTree {
   id: string;
   title: string;
@@ -96,3 +143,5 @@ export interface StoryTree {
   updatedAt: string;
   version: number;
 }
+
+
