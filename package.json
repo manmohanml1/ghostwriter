@@ -14,5 +14,6 @@
     "start:web": "npm run start --workspace=apps/web",
     "build:web": "npm run build --workspace=apps/web",
     "test:web": "npm run test --workspace=apps/web"
-  }
+  },
+  "updatedAt": "2026-08-24T01:05:19.265Z"
 }
