@@ -4,6 +4,23 @@ All notable changes to **Ghostwriter** are documented in this file in accordance
 
 ---
 
+## [0.5.3] - 2026-08-23
+
+### Added
+- **Pure Dynamic Narrative Synthesis Engine**: Completely removed all hardcoded story matrices and static tropes, synthesizing 100% of branch hypotheses, continuations, and chapters from the active chapter's prose, protagonist traits, and lore context.
+- **Thematic Scene Weaver & Location Seeding**: Dynamically classifies chapter themes (Discovery/Anomaly, Infiltration/Stealth, Action/Confrontation, Forensics) to generate rich, non-overlapping scene prose, with automatic extraction and seeding of named world settings into the Lore Bible.
+- **Dynamic Google AI Studio Gemini 3.6 Discovery**: Automatically queries `ListModels` API for `gemini-3.6-flash` and `gemini-3.6-pro`, self-healing deprecation errors and removing obsolete endpoints.
+- **Dynamic Groq LPU Discovery**: Multi-model selector (`llama-3.3-70b-versatile`, `deepseek-r1-distill-llama-70b`, `llama-3.1-8b-instant`, `qwen-2.5-32b`).
+- **Scope & Depth-Aware Narrative Vector Engine**: Added Story Scope selector (`SHORT`, `MEDIUM`, `LONG`) on Story Creation adapting narrative velocity and branch choices from Inciting Incident through Climax.
+- **Universal In-Flight Entity Harvester**: 1-click discovery and ingestion of newly introduced characters, locations, factions, and key items into the Lore Bible during chapter generation.
+- **Mobile Slide-up Bottom Sheet Drawer**: 3-state draggable bottom sheet (`PEEK` / `HALF` / `FULL`) with floating canvas controls and segmented `[🎨 Canvas | 📖 Reader]` navigation.
+- **Sequential Sibling Lettering System**: Automatically identifies existing child branch letters (`Path A/B/C`) and generates fresh subsequent letters (`Path D/E/F`).
+- **Canon Path Title Sanitization & Spine Export**: Strips temporary `Path X:` prefixes upon canon promotion and traverses the true canon spine during Markdown novel export.
+- **Single Canon Sibling Invariant & DAG Cycle Guard**: Automated sibling reconciliation on story load and cycle prevention in breadcrumb traversals.
+- **Comprehensive Regression Test Expansion**: 23 test suites with 65 automated end-to-end assertions.
+
+---
+
 ## [0.5.2] - 2026-08-23
 
 ### Security & UX Hardening

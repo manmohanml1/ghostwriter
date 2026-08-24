@@ -52,7 +52,19 @@ This document tracks the phased development and release plan for **Ghostwriter**
   - 1-Click reset to default cloud backend.
   - Upgraded custom backend glassmorphism action styling.
 
-- [ ] **v0.6.0 (Public Story Showcase & Standalone Web Player)**:
+- [x] **v0.5.3 (DAG Lifecycle Hardening, Pure Dynamic Synthesis, Gemini 3.6 & Mobile Architecture)**:
+  - **Pure Dynamic Narrative Synthesis Engine**: 100% elimination of hardcoded candidate matrices, synthesizing branch hypotheses and continuations from active chapter prose and lore.
+  - **Thematic Scene Weaver & Location Seeding**: Classifies chapter themes (Discovery/Anomaly, Infiltration/Stealth, Action/Confrontation) to generate rich, non-overlapping scene prose, with automatic extraction and seeding of named world settings.
+  - **Dynamic Model Discovery & Google AI Studio Gemini 3.6**: Auto-queries `ListModels` for `gemini-3.6-flash` and `gemini-3.6-pro`; auto-retries deprecation errors.
+  - **Dynamic Groq LPU Discovery**: Multi-model selector (`llama-3.3-70b`, `deepseek-r1-70b`, `llama-3.1-8b`, `qwen-2.5-32b`).
+  - **Scope & Depth-Aware Narrative Vector Engine**: Story Scope selector (`Short ~3-5 Ch`, `Medium ~8-15 Ch`, `Long ~20+ Ch`) adapting narrative velocity across genres.
+  - **Universal In-Flight Entity Harvester**: 1-click discovery and ingestion of newly introduced characters, locations, factions, and key items into the Lore Bible.
+  - **Sequential Sibling Lettering & Canon Sanitization**: Smart `Path D/E/F` lettering; automatic `Path X:` prefix stripping upon canon promotion; single canon sibling reconciliation.
+  - **Mobile Slide-up Bottom Sheet Drawer**: 3-state bottom sheet (`PEEK` / `HALF` / `FULL`) with floating canvas controls and segmented navigation.
+  - **Expanded Regression Suite**: 23 test suites with 65 automated end-to-end assertions.
+
+- [ ] **v0.6.0 (Visual Lorebook, Public Story Showcase & Standalone Web Player)**:
+  - Visual Character Relationship Network Graph and Keyword Activation Tags.
   - 1-Click "Publish Story" generating shareable URLs (`/story/:slug`).
   - Standalone reader player for mobile readers with branch choices.
   - OpenGraph / Twitter meta-cards for social media sharing.

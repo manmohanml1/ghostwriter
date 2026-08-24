@@ -1,0 +1,103 @@
+@if (store.isLoreGenModalOpen()) {
+  <div class="modal-backdrop" (click)="closeOnBackdrop($event)">
+    <div class="lore-modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="header-left">
+          <span class="sparkle-icon">✨</span>
+          <div>
+            <h2>AI World Lore & Character Bible</h2>
+            <p class="subtitle">Review and customize entities extracted from your opening scene before saving to story canon.</p>
+          </div>
+        </div>
+        <button class="btn-close" (click)="store.closeLoreGenModal()" title="Close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        @if (entities().length === 0) {
+          <div class="empty-state">
+            <p>No entities were extracted. Write a few sentences describing your character or world setting, then try again.</p>
+          </div>
+        } @else {
+          <div class="entities-list">
+            @for (item of entities(); track item.id; let i = $index) {
+              <div class="entity-card" [class.deselected]="!item.selected">
+                <div class="card-top-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" [(ngModel)]="item.selected" />
+                    <span class="custom-checkbox"></span>
+                    <span class="entity-index">#{{ i + 1 }}</span>
+                  </label>
+
+                  <div class="category-pill-group">
+                    <select [(ngModel)]="item.category" class="category-select" [disabled]="!item.selected">
+                      <option value="CHARACTER">👤 Character</option>
+                      <option value="LOCATION">📍 Location</option>
+                      <option value="ITEM">🔑 Item</option>
+                      <option value="FACTION">🛡️ Faction</option>
+                    </select>
+                  </div>
+
+                  <button class="btn-delete" (click)="removeDraftEntity(item.id)" title="Remove entity">✕</button>
+                </div>
+
+                <div class="card-inputs">
+                  <div class="input-group">
+                    <label>Entity Name</label>
+                    <input 
+                      type="text" 
+                      [(ngModel)]="item.name" 
+                      placeholder="e.g. Shawn, The Sky Citadel" 
+                      [disabled]="!item.selected"
+                    />
+                  </div>
+
+                  <div class="input-group">
+                    <label>Description & Narrative Role</label>
+                    <textarea 
+                      rows="2" 
+                      [(ngModel)]="item.description" 
+                      placeholder="Describe their background, abilities, or significance..."
+                      [disabled]="!item.selected"
+                    ></textarea>
+                  </div>
+
+                  <div class="input-group">
+                    <label>Traits / Keywords (comma-separated)</label>
+                    <input 
+                      type="text" 
+                      [(ngModel)]="item.traitsString" 
+                      placeholder="e.g. Ambitious, Pilot, High-altitude" 
+                      [disabled]="!item.selected"
+                    />
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <div class="modal-actions-bar">
+          <button class="btn-add-entity" (click)="addNewBlankEntity()">
+            + Add Custom Entity
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="footer-info">
+          <span class="selected-count">{{ selectedCount() }} of {{ entities().length }} entities selected</span>
+        </div>
+        <div class="footer-buttons">
+          <button class="btn-secondary" (click)="store.closeLoreGenModal()">Cancel</button>
+          <button 
+            class="btn-primary" 
+            [disabled]="selectedCount() === 0" 
+            (click)="applyLoreToStory()"
+          >
+            ✨ Confirm & Save to Lore Bible
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

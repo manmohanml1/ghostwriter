@@ -1,3 +1,4 @@
+# Dependencies & Build Outputs
 node_modules/
 dist/
 .angular/
@@ -6,5 +7,26 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# Secrets & Environment Variables
 .env
-.env.local
+.env.*
+!.env.example
+*.env
+
+# Testing & Coverage Outputs
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Local Media & Capture Artifacts
+media_*.png
+*.mp4
+*.webm
+*.wav
+apps/web/videos/
+apps/web/scripts/record-*.mjs
+

@@ -1,0 +1,43 @@
+<div class="style-toolbar">
+  <div class="control-item">
+    <label class="control-label">Genre</label>
+    <select 
+      [ngModel]="store.styleConfig().genre"
+      (ngModelChange)="updateGenre($event)"
+      class="control-select"
+    >
+      <option value="Cyberpunk">🌆 Cyberpunk</option>
+      <option value="Noir Mystery">🕵️ Noir Mystery</option>
+      <option value="Dark Fantasy">⚔️ Dark Fantasy</option>
+      <option value="Hard Sci-Fi">🚀 Hard Sci-Fi</option>
+      <option value="Gothic Thriller">🏰 Gothic Thriller</option>
+    </select>
+  </div>
+
+  <div class="control-item">
+    <label class="control-label">Pacing</label>
+    <select 
+      [ngModel]="store.styleConfig().pacing"
+      (ngModelChange)="updatePacing($event)"
+      class="control-select"
+    >
+      <option value="Methodical">🐢 Methodical / Slow-Burn</option>
+      <option value="Balanced">⚖️ Balanced</option>
+      <option value="Fast-Paced">⚡ Fast-Paced / Action</option>
+    </select>
+  </div>
+
+  <div class="control-item">
+    <label class="control-label">Tone</label>
+    <select 
+      [ngModel]="store.styleConfig().tone"
+      (ngModelChange)="updateTone($event)"
+      class="control-select"
+    >
+      <option value="Gritty & Dark">🌑 Gritty & Dark</option>
+      <option value="Dramatic">🎭 Dramatic</option>
+      <option value="Suspenseful">⏳ Suspenseful</option>
+      <option value="Whimsical">✨ Whimsical</option>
+    </select>
+  </div>
+</div>

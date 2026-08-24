@@ -42,16 +42,27 @@
   - `🔍 Forensic Investigation`
   - `⚡ Shocking Cliffhanger`
 
-### 3. 🛡️ Tri-Provider Rate Limit Defense
-- **Zero API Lockouts**: If Gemini returns an HTTP 429 rate limit or daily token cap, Ghostwriter automatically and silently fails over to **Groq (Llama 3.3 70B @ 300 tokens/s)**, and falls back to the **Dynamic Offline Engine**.
+### 3. 🛡️ Tri-Provider Rate Limit Defense & Gemini 3.6 Discovery
+- **Zero API Lockouts**: If Gemini returns an HTTP 429 rate limit or daily token cap, Ghostwriter automatically fails over to **Groq (Llama 3.3 70B @ 300 tokens/s)**, and falls back to the **Pure Dynamic Offline Engine**.
+- **Dynamic Google AI Studio Gemini 3.6 Discovery**: Auto-queries `ListModels` for `gemini-3.6-flash` and `gemini-3.6-pro` with self-healing deprecation retry.
 - **BYOK Storage**: Store your own Google AI Studio and Groq keys strictly in local browser `localStorage`.
 
-### 4. 📖 Immersive Webnovel E-Reader
+### 4. 🎭 Pure Dynamic Synthesis & Thematic Scene Weaver
+- **Zero Hardcoded Stories**: 100% elimination of fixed candidate matrices; branches, paragraphs, and chapters are synthesized dynamically from active character traits, chapter prose, and lore.
+- **Thematic Scene Weaver**: Automatically adapts scene prose to match the specific narrative arc (*Discovery/Anomaly*, *Stealth/Infiltration*, *Action/Confrontation*, *Forensics*).
+- **Scope & Depth-Aware Engine**: Adapts narrative velocity and branch choices across Short (~3–5 Ch), Medium (~8–15 Ch), and Long (~20+ Ch) story targets.
+- **Universal In-Flight Entity Harvester**: 1-click discovery and ingestion of newly introduced characters, locations, factions, and items.
+
+### 5. 📱 Responsive Studio & Mobile Bottom Sheet Drawer
+- **3-State Mobile Bottom Sheet**: Draggable bottom drawer (`PEEK` / `HALF` / `FULL`) with floating canvas controls and segmented navigation.
+- **Sequential Sibling Lettering**: Automatic `Path D/E/F` continuation and single-canon reconciliation.
+
+### 6. 📖 Immersive Webnovel E-Reader
 - Toggle from canvas editing directly into an immersive reading experience.
 - 4 Reading Themes: **🌑 Dark Slate**, **🖤 OLED Black**, **📜 Warm Sepia**, and **📄 Novel Paper**.
 - Slide-out Table of Contents drawer and Choose-Your-Own-Adventure branch choices.
 
-### 5. 📥 Multi-Format Publishing Suite
+### 7. 📥 Multi-Format Publishing Suite
 - **Novel Manuscript (`.md`)**: Exports the active Canon storyline into clean Markdown ready for Royal Road, Wattpad, Substack, and Kindle.
 - **Story Tree Backup (`.json`)**: Complete graph backup of all nodes, edges, Lore Bible, and coherence scores.
 
