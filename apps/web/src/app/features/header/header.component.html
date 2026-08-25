@@ -81,7 +81,7 @@
       class="ai-telemetry-pill"
       [attr.data-provider]="aiService.telemetry().activeProvider"
       (click)="openSettingsEvent.emit()"
-      title="Click to configure AI Keys"
+      title="Server-managed AI status and model settings"
     >
       <span class="ai-pulse-dot"></span>
       <span>
@@ -91,9 +91,9 @@
       </span>
     </div>
 
-    <!-- AI Keys Settings -->
+    <!-- Server-managed AI model settings -->
     <button class="action-btn" (click)="openSettingsEvent.emit()" title="AI API Keys">
-      ⚙️ AI Keys
+      ⚙️ AI Models
     </button>
 
     <!-- Export Dropdown -->
