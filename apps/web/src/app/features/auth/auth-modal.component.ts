@@ -98,8 +98,9 @@ export class AuthModalComponent {
 
   async handleSignOut(): Promise<void> {
     await this.supabase.signOut();
-    this.store.resetToDemoStory();
-    this.statusMessage.set('Signed out successfully.');
+    // Signing out must only end the cloud session. Resetting here overwrote the
+    // active local draft with the demo story and made the user's work unrecoverable.
+    this.statusMessage.set('Signed out successfully. Your local draft remains on this device.');
     setTimeout(() => this.closeModal.emit(), 600);
   }
 

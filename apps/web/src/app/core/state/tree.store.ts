@@ -45,6 +45,8 @@ export class TreeStore {
   private readonly aiService = inject(AIGeneratorService);
   private readonly supabase = inject(SupabaseService);
   private cloudSyncDebounceTimer: any = null;
+  private cloudSyncQueue: Promise<void> = Promise.resolve();
+  private cloudSyncVersion = 0;
 
   // Core Signals
   readonly currentTree = signal<StoryTree>(this.loadInitialTree());
@@ -909,13 +911,26 @@ export class TreeStore {
         if (this.cloudSyncDebounceTimer) {
           clearTimeout(this.cloudSyncDebounceTimer);
         }
-        this.cloudSyncDebounceTimer = setTimeout(() => {
-          this.supabase.syncStoryToCloud(payload).catch(() => {});
-        }, 1500);
+        const version = ++this.cloudSyncVersion;
+        this.cloudSyncDebounceTimer = setTimeout(() => this.enqueueCloudSync(version, payload), 1500);
       }
     } catch {
       // Ignore
     }
+  }
+
+  /**
+   * Serialize cloud writes. Debouncing alone does not prevent an older request
+   * that is already in flight from completing after a newer edit.
+   */
+  private enqueueCloudSync(version: number, payload: StoryTree): void {
+    this.cloudSyncQueue = this.cloudSyncQueue
+      .catch(() => undefined)
+      .then(async () => {
+        if (version < this.cloudSyncVersion) return;
+        await this.supabase.syncStoryToCloud(payload);
+      })
+      .catch(() => undefined);
   }
 
   private loadInitialTree(): StoryTree {
