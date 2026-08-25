@@ -125,52 +125,9 @@ export class AppComponent {
   isTestingOnSave = signal<boolean>(false);
 
   async saveAllSettings(): Promise<void> {
-    this.isTestingOnSave.set(true);
-    this.aiService.setGeminiApiKey(this.geminiKeyInput);
     this.aiService.setGeminiModel(this.geminiModelInput);
-    this.aiService.setGroqApiKey(this.groqKeyInput);
     this.aiService.setGroqModel(this.groqModelInput);
-
-    if (this.preferredProviderInput === 'GEMINI' || (this.geminiKeyInput.trim() && this.preferredProviderInput === 'OFFLINE')) {
-      if (this.geminiKeyInput.trim()) {
-        const testRes = await this.aiService.testConnection('GEMINI');
-        this.geminiTestResult.set(testRes);
-        if (testRes.success) {
-          this.preferredProviderInput = 'GEMINI';
-          this.aiService.setPreferredProvider('GEMINI');
-          this.isTestingOnSave.set(false);
-          this.showSettingsModal.set(false);
-          return;
-        } else {
-          this.aiService.setPreferredProvider('OFFLINE');
-          this.isTestingOnSave.set(false);
-          return;
-        }
-      } else {
-        this.aiService.setPreferredProvider('OFFLINE');
-      }
-    } else if (this.preferredProviderInput === 'GROQ') {
-      if (this.groqKeyInput.trim()) {
-        const testRes = await this.aiService.testConnection('GROQ');
-        this.groqTestResult.set(testRes);
-        if (testRes.success) {
-          this.aiService.setPreferredProvider('GROQ');
-          this.isTestingOnSave.set(false);
-          this.showSettingsModal.set(false);
-          return;
-        } else {
-          this.aiService.setPreferredProvider('OFFLINE');
-          this.isTestingOnSave.set(false);
-          return;
-        }
-      } else {
-        this.aiService.setPreferredProvider('OFFLINE');
-      }
-    } else {
-      this.aiService.setPreferredProvider('OFFLINE');
-    }
-
-    this.isTestingOnSave.set(false);
+    this.aiService.setPreferredProvider(this.preferredProviderInput);
     this.showSettingsModal.set(false);
   }
 

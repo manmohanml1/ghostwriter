@@ -568,6 +568,33 @@
   color: #fff;
 }
 
+.merge-node-card {
+  padding: 12px;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-radius: 10px;
+  background: rgba(88, 28, 135, 0.12);
+  margin-top: 12px;
+}
+
+.merge-node-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.merge-node-help {
+  margin-top: 6px;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.btn-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .btn-winner {
   background: rgba(234, 179, 8, 0.15);
   border: 1px solid rgba(234, 179, 8, 0.4);

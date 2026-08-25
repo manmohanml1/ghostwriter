@@ -3,10 +3,10 @@
 [![Production Deployment](https://img.shields.io/badge/Vercel-Production%20Live-success.svg)](https://web-green-beta-4giz07ncu3.vercel.app)
 [![CI Build](https://github.com/manmohanml1/ghostwriter/actions/workflows/ci.yml/badge.svg)](https://github.com/manmohanml1/ghostwriter/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
-[![Angular 19](https://img.shields.io/badge/Angular-19.0-dd0031.svg)](https://angular.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org)
+[![Angular 20](https://img.shields.io/badge/Angular-20.3-dd0031.svg)](https://angular.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org)
 
-> **Ghostwriter** is an open-source, local-first AI co-writing studio designed for novelists, webnovel authors, and interactive fiction creators. It combines an **infinite SVG decision-tree canvas**, **deep 1,500+ word chapter expansion**, a **character & world Lore Bible**, and a **bulletproof tri-provider failover engine** (Gemini 2.5 Flash $\rightarrow$ Groq Llama 3.3 70B $\rightarrow$ Smart Offline Engine).
+> **Ghostwriter** is an open-source, local-first co-writing studio for novelists and interactive-fiction creators. It combines an infinite SVG branching-tree canvas, chapter expansion, a character/world Lore Bible, and authenticated server-side Gemini/Groq inference with an offline fallback.
 
 🌐 **Live Cloud App**: [**https://web-green-beta-4giz07ncu3.vercel.app**](https://web-green-beta-4giz07ncu3.vercel.app)
 
@@ -17,7 +17,7 @@
 ```
                           ┌───────────────────────────┐
                           │   🎨 Studio SVG Canvas    │
-                          │   (Pan, Zoom, Bezier DAG) │
+                          │  (Pan, Zoom, Branch Tree) │
                           └─────────────┬─────────────┘
                                         │
            ┌────────────────────────────┼────────────────────────────┐
@@ -29,7 +29,7 @@
 └──────────────────────┘    └──────────────────────┘    └──────────────────────┘
 ```
 
-### 1. 🎨 Infinite Visual DAG Canvas
+### 1. 🎨 Infinite Visual Branching-Tree Canvas
 - Full interactive graph with **hierarchical layout**, smooth **pan & zoom**, and **cubic bezier spline routing**.
 - Track alternate storylines, divergent plot twists, and pruned timelines with instant restoration.
 
@@ -45,7 +45,9 @@
 ### 3. 🛡️ Tri-Provider Rate Limit Defense & Gemini 3.6 Discovery
 - **Zero API Lockouts**: If Gemini returns an HTTP 429 rate limit or daily token cap, Ghostwriter automatically fails over to **Groq (Llama 3.3 70B @ 300 tokens/s)**, and falls back to the **Pure Dynamic Offline Engine**.
 - **Dynamic Google AI Studio Gemini 3.6 Discovery**: Auto-queries `ListModels` for `gemini-3.6-flash` and `gemini-3.6-pro` with self-healing deprecation retry.
-- **BYOK Storage**: Store your own Google AI Studio and Groq keys strictly in local browser `localStorage`.
+- **Server-managed credentials**: Gemini and Groq keys remain in Vercel server environment variables. Signed-in clients use the authenticated `/api/ai` proxy; secrets never enter browser storage.
+
+> Graph edges now support true multi-parent timeline merges with cycle prevention. Each chapter retains one primary parent solely for a deterministic default breadcrumb and manuscript route.
 
 ### 4. 🎭 Pure Dynamic Synthesis & Thematic Scene Weaver
 - **Zero Hardcoded Stories**: 100% elimination of fixed candidate matrices; branches, paragraphs, and chapters are synthesized dynamically from active character traits, chapter prose, and lore.
@@ -98,14 +100,15 @@ ghostwriter/
 ├── .github/workflows/         # Automated GitHub Actions CI/CD pipelines
 │   └── ci.yml
 ├── apps/
-│   └── web/                   # Angular 19 Standalone Single Page App
-│       ├── vercel.json        # Production Vercel SPA routing & security headers
+│   └── web/                   # Angular 20 standalone single-page app
 │       ├── src/app/core/      # Reactive TreeStore, AIGeneratorService, Fixtures
 │       └── src/app/features/  # Canvas, Inspector, Reader, Lore Bible, Style Controls
 ├── packages/
 │   └── contracts/             # Domain TypeScript interfaces (TreeNode, StoryTree, LoreEntity)
 ├── infrastructure/            # Supabase PostgreSQL schema & local Docker configuration
 │   └── supabase/schema.sql
+├── api/                       # Authenticated Vercel AI provider proxy
+├── vercel.json                # Vercel SPA/function routing and security headers
 └── docs/                      # Architecture, Cost Models, DEPLOYMENT, and ADR records
 ```
 

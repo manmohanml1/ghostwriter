@@ -1,5 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { TreeNode, LoreEntity, StoryStyleConfig, AIBranchSuggestion, ChapterGenerationOptions, AIProviderType, AIProviderTelemetry, DiscoveredEntity, StoryInceptionRequest, StoryInceptionResult } from '../models/graph.models';
+import { SupabaseService } from './supabase.service';
 
 const GEMINI_KEY_STORAGE = 'ghostwriter_gemini_api_key';
 const GEMINI_MODEL_STORAGE = 'ghostwriter_gemini_model';
@@ -11,6 +12,7 @@ const PREFERRED_PROVIDER_STORAGE = 'ghostwriter_preferred_provider';
   providedIn: 'root'
 })
 export class AIGeneratorService {
+  private readonly supabase = inject(SupabaseService);
   private offlineParagraphIndex = 0;
   private branchCounter = 1;
 
@@ -59,7 +61,7 @@ export class AIGeneratorService {
 
     try {
       const url = `https://api.groq.com/openai/v1/models`;
-      const res = await fetch(url, {
+      const res = await this.providerFetch(url, {
         headers: {
           'Authorization': `Bearer ${key}`
         }
@@ -104,7 +106,7 @@ export class AIGeneratorService {
 
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
-      const res = await fetch(url);
+      const res = await this.providerFetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const rawList = data?.models || [];
@@ -133,28 +135,28 @@ export class AIGeneratorService {
 
   getGeminiApiKey(): string {
     if (typeof window !== 'undefined' && window.localStorage) {
-      return window.localStorage.getItem(GEMINI_KEY_STORAGE) || '';
+      window.localStorage.removeItem(GEMINI_KEY_STORAGE);
     }
-    return '';
+    return 'server-managed';
   }
 
   setGeminiApiKey(key: string): void {
     if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(GEMINI_KEY_STORAGE, key.trim());
+      window.localStorage.removeItem(GEMINI_KEY_STORAGE);
       this.updateTelemetryProvider();
     }
   }
 
   getGroqApiKey(): string {
     if (typeof window !== 'undefined' && window.localStorage) {
-      return window.localStorage.getItem(GROQ_KEY_STORAGE) || '';
+      window.localStorage.removeItem(GROQ_KEY_STORAGE);
     }
-    return '';
+    return 'server-managed';
   }
 
   setGroqApiKey(key: string): void {
     if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(GROQ_KEY_STORAGE, key.trim());
+      window.localStorage.removeItem(GROQ_KEY_STORAGE);
       this.updateTelemetryProvider();
     }
   }
@@ -202,6 +204,22 @@ export class AIGeneratorService {
     });
   }
 
+  private async providerFetch(url: string, init: RequestInit = {}): Promise<Response> {
+    const provider = url.includes('generativelanguage.googleapis.com') ? 'GEMINI'
+      : url.includes('api.groq.com') ? 'GROQ' : null;
+    if (!provider) return fetch(url, init);
+
+    const token = await this.supabase.getAccessToken();
+    if (!token) return new Response(JSON.stringify({ error: 'Sign in to use server-managed AI.' }), { status: 401 });
+    const parsed = new URL(url);
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ provider, path: parsed.pathname, method: init.method || 'GET', body: init.body ? JSON.parse(String(init.body)) : undefined })
+    });
+    return response;
+  }
+
   async testConnection(provider: 'GEMINI' | 'GROQ'): Promise<{ success: boolean; message: string; latencyMs: number }> {
     const start = performance.now();
     try {
@@ -211,7 +229,7 @@ export class AIGeneratorService {
         let model = this.getGeminiModel();
         
         let url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-        let res = await fetch(url, {
+        let res = await this.providerFetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: [{ parts: [{ text: 'Ping' }] }] })
@@ -231,7 +249,7 @@ export class AIGeneratorService {
           if (match && match[1] && match[1] !== model) {
             const suggestedModel = match[1];
             const retryUrl = `https://generativelanguage.googleapis.com/v1beta/models/${suggestedModel}:generateContent?key=${key}`;
-            const retryRes = await fetch(retryUrl, {
+            const retryRes = await this.providerFetch(retryUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ contents: [{ parts: [{ text: 'Ping' }] }] })
@@ -246,7 +264,7 @@ export class AIGeneratorService {
           // If still failing and not 3.6, try gemini-3.6-flash directly
           if (model !== 'gemini-3.6-flash') {
             const retryUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${key}`;
-            const retryRes = await fetch(retryUrl, {
+            const retryRes = await this.providerFetch(retryUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ contents: [{ parts: [{ text: 'Ping' }] }] })
@@ -268,7 +286,7 @@ export class AIGeneratorService {
         if (!key) throw new Error('No Groq API key provided.');
         const model = this.getGroqModel();
         const url = `https://api.groq.com/openai/v1/chat/completions`;
-        const res = await fetch(url, {
+        const res = await this.providerFetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -380,7 +398,7 @@ Return STRICT JSON matching this schema:
 
     const model = this.getGeminiModel();
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const response = await fetch(url, {
+    const response = await this.providerFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -440,7 +458,7 @@ Respond strictly with a JSON object matching:
 }`;
 
     const model = this.getGroqModel();
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const response = await this.providerFetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -553,7 +571,7 @@ Respond strictly with a JSON object matching:
       try {
         const model = this.getGeminiModel();
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
-        const res = await fetch(url, {
+        const res = await this.providerFetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
@@ -568,7 +586,7 @@ Respond strictly with a JSON object matching:
 
     if (groqKey) {
       try {
-        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        const res = await this.providerFetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
           body: JSON.stringify({
@@ -749,7 +767,7 @@ Return strictly as JSON with this schema:
 
     const model = this.getGeminiModel();
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const response = await fetch(url, {
+    const response = await this.providerFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -794,7 +812,7 @@ Return strictly as JSON matching:
 }`;
 
     const model = this.getGroqModel();
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const res = await this.providerFetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -900,7 +918,7 @@ Return strictly as valid JSON matching this schema:
     const model = this.getGeminiModel();
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    const response = await fetch(url, {
+    const response = await this.providerFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -945,7 +963,7 @@ Return ONLY valid JSON matching:
 ]`;
 
     const model = this.getGroqModel();
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const res = await this.providerFetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1023,7 +1041,7 @@ Return ONLY the continuation paragraph prose.`;
 
     const model = this.getGeminiModel();
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const response = await fetch(url, {
+    const response = await this.providerFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
@@ -1043,7 +1061,7 @@ Return ONLY the continuation paragraph prose.`;
   ): Promise<string> {
     const ctx = this.buildHierarchicalPromptContext(currentChapter, ancestorTrail, loreBible, styleConfig);
     const model = this.getGroqModel();
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const res = await this.providerFetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1191,7 +1209,7 @@ Return strictly a JSON array of entities:
   }
 ]`;
 
-    const response = await fetch(url, {
+    const response = await this.providerFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1227,7 +1245,7 @@ Return strictly a JSON array of entities:
     const systemPrompt = `You are a narrative lore analyst. Extract 2-5 world lore & character entities from the story seed in JSON format.`;
     const userPrompt = `Genre: ${genre}, Tone: ${tone}\nStory Text:\n"""\n${prose}\n"""\nRespond strictly in JSON array format: [{"name": "Name", "category": "CHARACTER"|"LOCATION"|"ITEM"|"FACTION", "description": "...", "traits": ["..."]}]`;
 
-    const response = await fetch(url, {
+    const response = await this.providerFetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1647,6 +1665,5 @@ Return strictly a JSON array of entities:
     return `The first chapter of "${title || 'The Journey'}" begins as the immediate conflict of this ${genre.toLowerCase()} tale takes hold under a ${tone.toLowerCase()} atmosphere.`;
   }
 }
-
 
 

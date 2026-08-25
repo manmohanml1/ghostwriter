@@ -311,6 +311,12 @@ export class SupabaseService {
     this.userCloudStories.set([]);
   }
 
+  async getAccessToken(): Promise<string> {
+    if (!this.client) return '';
+    const { data } = await this.client.auth.getSession();
+    return data.session?.access_token || '';
+  }
+
   /**
    * Real Cloud Sync: Persists Stories, Nodes, Edges, and Lore into PostgreSQL tables
    */

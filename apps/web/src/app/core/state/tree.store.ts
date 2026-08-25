@@ -8,6 +8,10 @@ const STORAGE_KEY = 'ghostwriter_active_story_v1';
 const CLOUD_BASELINE_KEY = 'ghostwriter_cloud_baseline_v1';
 const ANONYMOUS_STORAGE_SCOPE = 'anonymous';
 const THEME_STORAGE_KEY = 'ghostwriter_reader_theme';
+const MAX_NODE_COUNT = 1_000;
+const MAX_LORE_COUNT = 500;
+const MAX_CHAPTER_CHARACTERS = 100_000;
+const MAX_STORY_STORAGE_BYTES = 4_000_000;
 
 const DEFAULT_LORE: LoreEntity[] = [
   {
@@ -66,6 +70,7 @@ export class TreeStore {
   readonly isExpandingChapter = signal<boolean>(false);
   readonly activeAiSuggestions = signal<AIBranchSuggestion[]>([]);
   readonly previousChapterContent = signal<{ nodeId: string; content: string; title: string } | null>(null);
+  readonly saveErrorMessage = signal<string | null>(null);
 
   // Reader Settings
   readonly readerTheme = signal<ReaderTheme>(this.loadInitialTheme());
@@ -136,7 +141,7 @@ export class TreeStore {
     const currentId = this.selectedNodeId();
     if (!currentId) return [];
     const tree = this.currentTree();
-    return Object.values(tree.nodes).filter(n => n.parentNodeId === currentId && n.status !== 'PRUNED');
+    return this.getChildNodes(currentId, tree).filter(n => n.status !== 'PRUNED');
   });
 
   readonly activeChapterWordCount = computed<number>(() => {
@@ -322,9 +327,7 @@ export class TreeStore {
 
     this.isGeneratingAI.set(true);
     try {
-      const directChildren = Object.values(this.currentTree().nodes).filter(
-        n => n.parentNodeId === active.id && n.status !== 'PRUNED'
-      );
+      const directChildren = this.getChildNodes(active.id).filter(n => n.status !== 'PRUNED');
 
       const suggestions = await this.aiService.generateThreeBranches(
         active,
@@ -492,13 +495,72 @@ export class TreeStore {
   }
 
   getAllDescendantIds(nodeId: string, tree: StoryTree = this.currentTree()): string[] {
-    const directChildren = Object.values(tree.nodes).filter(n => n.parentNodeId === nodeId);
     const result: string[] = [];
-    for (const child of directChildren) {
-      result.push(child.id);
-      result.push(...this.getAllDescendantIds(child.id, tree));
-    }
+    const visited = new Set<string>([nodeId]);
+    const visit = (parentId: string) => {
+      for (const child of this.getChildNodes(parentId, tree)) {
+        if (visited.has(child.id)) continue;
+        visited.add(child.id);
+        result.push(child.id);
+        visit(child.id);
+      }
+    };
+    visit(nodeId);
     return result;
+  }
+
+  getParentNodes(nodeId: string, tree: StoryTree = this.currentTree()): TreeNode[] {
+    const parentIds = new Set(
+      (tree.edges || []).filter(edge => edge.targetNodeId === nodeId).map(edge => edge.sourceNodeId)
+    );
+    const primaryParent = tree.nodes[nodeId]?.parentNodeId;
+    if (primaryParent) parentIds.add(primaryParent);
+    return [...parentIds].map(id => tree.nodes[id]).filter((node): node is TreeNode => Boolean(node));
+  }
+
+  getChildNodes(nodeId: string, tree: StoryTree = this.currentTree()): TreeNode[] {
+    const childIds = new Set(
+      (tree.edges || []).filter(edge => edge.sourceNodeId === nodeId).map(edge => edge.targetNodeId)
+    );
+    // Preserve compatibility with imported v0.5 trees that predate explicit edges.
+    Object.values(tree.nodes).forEach(node => {
+      if (node.parentNodeId === nodeId) childIds.add(node.id);
+    });
+    return [...childIds].map(id => tree.nodes[id]).filter((node): node is TreeNode => Boolean(node));
+  }
+
+  canLinkNodes(sourceNodeId: string, targetNodeId: string, tree: StoryTree = this.currentTree()): boolean {
+    if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return false;
+    if (!tree.nodes[sourceNodeId] || !tree.nodes[targetNodeId]) return false;
+    if ((tree.edges || []).some(edge => edge.sourceNodeId === sourceNodeId && edge.targetNodeId === targetNodeId)) return false;
+    // Adding source -> target is safe only when target cannot already reach source.
+    return !this.getAllDescendantIds(targetNodeId, tree).includes(sourceNodeId);
+  }
+
+  linkExistingNode(sourceNodeId: string, targetNodeId: string, label = 'Timeline merge'): boolean {
+    const tree = this.currentTree();
+    if (!this.canLinkNodes(sourceNodeId, targetNodeId, tree)) {
+      this.saveErrorMessage.set('Cannot link these chapters because it would duplicate an edge or create a cycle.');
+      return false;
+    }
+
+    const edge: TreeEdge = {
+      id: `edge-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+      treeId: tree.id,
+      sourceNodeId,
+      targetNodeId,
+      edgeType: 'MERGE',
+      label: label.trim() || 'Timeline merge'
+    };
+    const updatedTree = {
+      ...tree,
+      edges: [...tree.edges, edge],
+      updatedAt: new Date().toISOString(),
+      version: tree.version + 1
+    };
+    this.currentTree.set(updatedTree);
+    this.saveToStorage(updatedTree);
+    return true;
   }
 
   pruneNode(nodeId: string): void {
@@ -506,8 +568,20 @@ export class TreeStore {
     if (nodeId === tree.rootNodeId) return;
 
     // Recursively cascade prune node AND all descendant child branches
-    const descendantIds = this.getAllDescendantIds(nodeId, tree);
-    const allPruneIds = new Set([nodeId, ...descendantIds]);
+    const descendants = this.getAllDescendantIds(nodeId, tree);
+    const allPruneIds = new Set([nodeId]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      descendants.forEach(candidateId => {
+        if (allPruneIds.has(candidateId)) return;
+        const parents = this.getParentNodes(candidateId, tree);
+        if (parents.length > 0 && parents.every(parent => allPruneIds.has(parent.id))) {
+          allPruneIds.add(candidateId);
+          changed = true;
+        }
+      });
+    }
 
     const updatedNodes = { ...tree.nodes };
     allPruneIds.forEach(id => {
@@ -535,8 +609,26 @@ export class TreeStore {
 
   pruneChildrenOf(nodeId: string): void {
     const tree = this.currentTree();
-    const descendantIds = this.getAllDescendantIds(nodeId, tree);
-    if (descendantIds.length === 0) return;
+    const descendants = this.getAllDescendantIds(nodeId, tree);
+    const directChildren = this.getChildNodes(nodeId, tree);
+    const descendantIds = new Set<string>();
+    directChildren.forEach(child => {
+      const alternateParents = this.getParentNodes(child.id, tree).filter(parent => parent.id !== nodeId);
+      if (alternateParents.length === 0) descendantIds.add(child.id);
+    });
+    let changed = true;
+    while (changed) {
+      changed = false;
+      descendants.forEach(candidateId => {
+        if (descendantIds.has(candidateId)) return;
+        const parents = this.getParentNodes(candidateId, tree);
+        if (parents.length > 0 && parents.every(parent => descendantIds.has(parent.id))) {
+          descendantIds.add(candidateId);
+          changed = true;
+        }
+      });
+    }
+    if (directChildren.length === 0) return;
 
     const updatedNodes = { ...tree.nodes };
     descendantIds.forEach(id => {
@@ -560,14 +652,32 @@ export class TreeStore {
 
   deleteChildrenOf(nodeId: string): void {
     const tree = this.currentTree();
-    const descendantIds = new Set(this.getAllDescendantIds(nodeId, tree));
-    if (descendantIds.size === 0) return;
+    const descendants = this.getAllDescendantIds(nodeId, tree);
+    const directChildIds = new Set(this.getChildNodes(nodeId, tree).map(node => node.id));
+    const descendantIds = new Set<string>();
+    directChildIds.forEach(childId => {
+      const alternateParents = this.getParentNodes(childId, tree).filter(parent => parent.id !== nodeId);
+      if (alternateParents.length === 0) descendantIds.add(childId);
+    });
+    let changed = true;
+    while (changed) {
+      changed = false;
+      descendants.forEach(candidateId => {
+        if (descendantIds.has(candidateId)) return;
+        const parents = this.getParentNodes(candidateId, tree);
+        if (parents.length > 0 && parents.every(parent => descendantIds.has(parent.id))) {
+          descendantIds.add(candidateId);
+          changed = true;
+        }
+      });
+    }
+    if (directChildIds.size === 0) return;
 
     const updatedNodes = { ...tree.nodes };
     descendantIds.forEach(id => delete updatedNodes[id]);
 
     const updatedEdges = tree.edges.filter(
-      e => !descendantIds.has(e.sourceNodeId) && !descendantIds.has(e.targetNodeId)
+      e => e.sourceNodeId !== nodeId && !descendantIds.has(e.sourceNodeId) && !descendantIds.has(e.targetNodeId)
     );
 
     const updatedTree: StoryTree = {
@@ -588,8 +698,22 @@ export class TreeStore {
     const tree = this.currentTree();
     if (nodeId === tree.rootNodeId) return;
 
-    // Recursively collect all descendant IDs to delete
-    const allIdsToDelete = new Set([nodeId, ...this.getAllDescendantIds(nodeId, tree)]);
+    // Delete descendants only when every one of their parent routes is also
+    // deleted. Shared merge destinations survive through their other parent.
+    const descendants = this.getAllDescendantIds(nodeId, tree);
+    const allIdsToDelete = new Set([nodeId]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      descendants.forEach(candidateId => {
+        if (allIdsToDelete.has(candidateId)) return;
+        const parents = this.getParentNodes(candidateId, tree);
+        if (parents.length > 0 && parents.every(parent => allIdsToDelete.has(parent.id))) {
+          allIdsToDelete.add(candidateId);
+          changed = true;
+        }
+      });
+    }
 
     const updatedNodes = { ...tree.nodes };
     allIdsToDelete.forEach(id => delete updatedNodes[id]);
@@ -833,8 +957,8 @@ export class TreeStore {
       visited.add(currentId);
       canonTrail.push(tree.nodes[currentId]);
       // Find the CANON_PATH child at this depth, fall back to first ACTIVE child
-      const children = Object.values(tree.nodes).filter(n => n.parentNodeId === currentId && n.status !== 'PRUNED');
-      const canonChild = children.find(c => c.status === 'CANON_PATH');
+      const children: TreeNode[] = this.getChildNodes(currentId, tree).filter((node: TreeNode) => node.status !== 'PRUNED');
+      const canonChild: TreeNode | undefined = children.find((child: TreeNode) => child.status === 'CANON_PATH');
       currentId = canonChild?.id || children[0]?.id || null;
     }
 
@@ -929,10 +1053,21 @@ export class TreeStore {
   private saveToStorage(tree: StoryTree): void {
     try {
       const payload = this.toStoragePayload(tree);
+      const nodeList = Object.values(payload.nodes || {});
+      if (nodeList.length > MAX_NODE_COUNT) throw new Error(`Story limit reached: maximum ${MAX_NODE_COUNT} chapters/nodes.`);
+      if ((payload.loreBible?.length || 0) > MAX_LORE_COUNT) throw new Error(`Lore limit reached: maximum ${MAX_LORE_COUNT} entries.`);
+      if (nodeList.some(node => (node.content || '').length > MAX_CHAPTER_CHARACTERS)) {
+        throw new Error(`Chapter limit reached: maximum ${MAX_CHAPTER_CHARACTERS.toLocaleString()} characters per node.`);
+      }
+      const serialized = JSON.stringify(payload);
+      if (new TextEncoder().encode(serialized).byteLength > MAX_STORY_STORAGE_BYTES) {
+        throw new Error('This story exceeds the 4 MB browser-storage safety limit. Export a backup and split the project.');
+      }
 
       if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem(this.activeStoryStorageKey(), JSON.stringify(payload));
+        window.localStorage.setItem(this.activeStoryStorageKey(), serialized);
       }
+      this.saveErrorMessage.set(null);
 
       // Auto-sync to Supabase PostgreSQL when user is authenticated
       const accountId = this.supabase.currentUser()?.id;
@@ -947,8 +1082,8 @@ export class TreeStore {
           1500
         );
       }
-    } catch {
-      // Ignore
+    } catch (error) {
+      this.saveErrorMessage.set(error instanceof Error ? error.message : 'Unable to save this story locally.');
     }
   }
 
@@ -974,9 +1109,15 @@ export class TreeStore {
             this.applyCloudRevision(result.revision);
           }
           this.markCloudBaseline(payload, storageScope);
+          this.saveErrorMessage.set(null);
+        } else {
+          this.saveErrorMessage.set(result.message || 'Cloud sync failed. Your latest draft remains saved on this device.');
         }
       })
-      .catch(() => undefined);
+      .catch(error => {
+        const detail = error instanceof Error ? error.message : 'Unexpected cloud error';
+        this.saveErrorMessage.set(`Cloud sync failed: ${detail}. Your latest draft remains saved on this device.`);
+      });
   }
 
   private loadInitialTree(): StoryTree {
