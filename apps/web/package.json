@@ -8,8 +8,10 @@
     "prebuild": "npm test",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "node scripts/run-regression-tests.mjs",
-    "test:e2e": "playwright test"
+    "test": "npm run test:regression && npm run test:integration",
+    "test:regression": "node scripts/run-regression-tests.mjs",
+    "test:integration": "npx --no-install playwright test",
+    "test:e2e": "npm run test:integration"
   },
   "dependencies": {
     "@angular/animations": "^19.1.0",
@@ -29,6 +31,7 @@
     "@angular-devkit/build-angular": "^19.1.0",
     "@angular/cli": "^19.1.0",
     "@angular/compiler-cli": "^19.1.0",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.0.0",
     "playwright": "^1.62.1",
     "typescript": "~5.7.2"
