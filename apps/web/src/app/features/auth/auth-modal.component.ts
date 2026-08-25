@@ -77,6 +77,9 @@ export class AuthModalComponent {
     this.isError.set(false);
     const res = await this.supabase.syncStoryToCloud(this.store.currentTree());
     this.isSubmitting.set(false);
+    if (res.success) {
+      this.store.markCurrentTreeAsSynced();
+    }
     this.statusMessage.set(res.message);
     this.isError.set(!res.success);
   }
@@ -87,6 +90,10 @@ export class AuthModalComponent {
     const story = await this.supabase.loadStoryFromCloud(id);
     this.isSubmitting.set(false);
     if (story) {
+      if (this.store.needsCloudLoadConfirmation(story) && !this.confirmReplaceLocalDraft(story.title)) {
+        this.statusMessage.set('Kept your unsynced local draft.');
+        return;
+      }
       this.store.loadCloudStory(story);
       this.statusMessage.set(`Loaded "${story.title}"!`);
       setTimeout(() => this.closeModal.emit(), 600);
@@ -98,9 +105,9 @@ export class AuthModalComponent {
 
   async handleSignOut(): Promise<void> {
     await this.supabase.signOut();
-    // Signing out must only end the cloud session. Resetting here overwrote the
-    // active local draft with the demo story and made the user's work unrecoverable.
-    this.statusMessage.set('Signed out successfully. Your local draft remains on this device.');
+    // Signing out ends the cloud session and returns to the separately stored
+    // guest workspace; cloud-account drafts stay isolated on this device.
+    this.statusMessage.set('Signed out successfully. Restored this device\'s separate guest workspace.');
     setTimeout(() => this.closeModal.emit(), 600);
   }
 
@@ -121,5 +128,12 @@ export class AuthModalComponent {
     this.customKey = '';
     this.statusMessage.set('Reverted to Ghostwriter Default Cloud backend!');
     this.isError.set(false);
+  }
+
+  private confirmReplaceLocalDraft(cloudTitle: string): boolean {
+    if (typeof window === 'undefined') return false;
+    return window.confirm(
+      `You have unsynced changes in this account's local workspace. Open “${cloudTitle}” from cloud and replace them?`
+    );
   }
 }

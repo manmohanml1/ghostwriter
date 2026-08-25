@@ -117,6 +117,10 @@ export class HeaderComponent {
   async loadCloudStory(id: string): Promise<void> {
     const cloudStory = await this.supabase.loadStoryFromCloud(id);
     if (cloudStory) {
+      if (this.store.needsCloudLoadConfirmation(cloudStory) && !this.confirmReplaceLocalDraft(cloudStory.title)) {
+        this.showStoryMenu.set(false);
+        return;
+      }
       this.store.loadCloudStory(cloudStory);
     }
     this.showStoryMenu.set(false);
@@ -144,5 +148,12 @@ export class HeaderComponent {
     a.click();
     URL.revokeObjectURL(url);
     this.showExportMenu.set(false);
+  }
+
+  private confirmReplaceLocalDraft(cloudTitle: string): boolean {
+    if (typeof window === 'undefined') return false;
+    return window.confirm(
+      `You have unsynced changes in this account's local workspace. Open “${cloudTitle}” from cloud and replace them?`
+    );
   }
 }

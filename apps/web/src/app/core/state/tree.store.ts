@@ -5,6 +5,8 @@ import { AIGeneratorService } from '../services/ai-generator.service';
 import { SupabaseService } from '../services/supabase.service';
 
 const STORAGE_KEY = 'ghostwriter_active_story_v1';
+const CLOUD_BASELINE_KEY = 'ghostwriter_cloud_baseline_v1';
+const ANONYMOUS_STORAGE_SCOPE = 'anonymous';
 const THEME_STORAGE_KEY = 'ghostwriter_reader_theme';
 
 const DEFAULT_LORE: LoreEntity[] = [
@@ -44,6 +46,11 @@ const DEFAULT_STYLE: StoryStyleConfig = {
 export class TreeStore {
   private readonly aiService = inject(AIGeneratorService);
   private readonly supabase = inject(SupabaseService);
+  /**
+   * Stories are device-local, but they must never be shared between guest mode
+   * and different cloud accounts on the same browser profile.
+   */
+  private activeStorageScope = ANONYMOUS_STORAGE_SCOPE;
   private cloudSyncDebounceTimer: any = null;
   private cloudSyncQueue: Promise<void> = Promise.resolve();
   private cloudSyncVersion = 0;
@@ -153,21 +160,9 @@ export class TreeStore {
 
   constructor() {
     effect(() => {
-      const isAuth = this.supabase.isAuthenticated();
-      if (isAuth && this.supabase.isCloudConfigured()) {
-        const stories = this.supabase.userCloudStories();
-        if (stories && stories.length > 0) {
-          const currentId = this.currentTree().id;
-          const matchingStory = stories.find(s => s.id === currentId);
-          if (!matchingStory) {
-            this.supabase.loadStoryFromCloud(stories[0].id).then(cloudTree => {
-              if (cloudTree) {
-                this.loadCloudStory(cloudTree);
-              }
-            }).catch(() => {});
-          }
-        }
-      }
+      // Do not auto-open a cloud story here. That used to overwrite whichever
+      // local draft happened to be active when authentication changed.
+      this.switchStorageScope(this.supabase.currentUser()?.id ?? null);
     });
   }
 
@@ -892,27 +887,55 @@ export class TreeStore {
     this.styleConfig.set(reconciledStory.styleConfig || DEFAULT_STYLE);
     this.previousChapterContent.set(null);
     this.saveToStorage(reconciledStory);
+    this.markCloudBaseline(reconciledStory);
+  }
+
+  /**
+   * Returns true only when loading a cloud copy would replace an unsynced
+   * local draft in the currently active account workspace.
+   */
+  needsCloudLoadConfirmation(story: StoryTree): boolean {
+    if (!this.hasStoredTreeForActiveScope() || !this.hasUnsyncedLocalChanges()) {
+      return false;
+    }
+    return this.storyFingerprint(this.currentTree()) !== this.storyFingerprint(story);
+  }
+
+  hasUnsyncedLocalChanges(): boolean {
+    if (typeof window === 'undefined' || !window.localStorage || !this.supabase.isAuthenticated()) {
+      return false;
+    }
+
+    const baseline = window.localStorage.getItem(this.cloudBaselineStorageKey());
+    return !baseline || baseline !== this.storyFingerprint(this.currentTree());
+  }
+
+  markCurrentTreeAsSynced(): void {
+    if (this.supabase.isAuthenticated()) {
+      this.markCloudBaseline(this.currentTree());
+    }
   }
 
   private saveToStorage(tree: StoryTree): void {
     try {
-      const payload: StoryTree = {
-        ...tree,
-        loreBible: this.loreBible(),
-        styleConfig: this.styleConfig()
-      };
+      const payload = this.toStoragePayload(tree);
 
       if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        window.localStorage.setItem(this.activeStoryStorageKey(), JSON.stringify(payload));
       }
 
       // Auto-sync to Supabase PostgreSQL when user is authenticated
-      if (this.supabase.isAuthenticated()) {
+      const accountId = this.supabase.currentUser()?.id;
+      if (accountId) {
         if (this.cloudSyncDebounceTimer) {
           clearTimeout(this.cloudSyncDebounceTimer);
         }
         const version = ++this.cloudSyncVersion;
-        this.cloudSyncDebounceTimer = setTimeout(() => this.enqueueCloudSync(version, payload), 1500);
+        const storageScope = this.activeStorageScope;
+        this.cloudSyncDebounceTimer = setTimeout(
+          () => this.enqueueCloudSync(version, payload, storageScope, accountId),
+          1500
+        );
       }
     } catch {
       // Ignore
@@ -923,31 +946,110 @@ export class TreeStore {
    * Serialize cloud writes. Debouncing alone does not prevent an older request
    * that is already in flight from completing after a newer edit.
    */
-  private enqueueCloudSync(version: number, payload: StoryTree): void {
+  private enqueueCloudSync(version: number, payload: StoryTree, storageScope: string, accountId: string): void {
     this.cloudSyncQueue = this.cloudSyncQueue
       .catch(() => undefined)
       .then(async () => {
-        if (version < this.cloudSyncVersion) return;
-        await this.supabase.syncStoryToCloud(payload);
+        // A queued write must not follow the user into a different account or
+        // survive a sign-out while it waits behind another request.
+        if (
+          version < this.cloudSyncVersion ||
+          storageScope !== this.activeStorageScope ||
+          accountId !== this.supabase.currentUser()?.id
+        ) return;
+
+        const result = await this.supabase.syncStoryToCloud(payload);
+        if (result.success) {
+          this.markCloudBaseline(payload, storageScope);
+        }
       })
       .catch(() => undefined);
   }
 
   private loadInitialTree(): StoryTree {
+    const anonymousTree = this.readStoredTree(this.activeStoryStorageKey(ANONYMOUS_STORAGE_SCOPE));
+    if (anonymousTree) return anonymousTree;
+
+    // One-time, non-destructive migration of the pre-v0.5.3 shared workspace.
+    const legacyTree = this.readStoredTree(STORAGE_KEY);
+    if (legacyTree) {
+      try {
+        window.localStorage.setItem(this.activeStoryStorageKey(ANONYMOUS_STORAGE_SCOPE), JSON.stringify(legacyTree));
+      } catch {
+        // The legacy draft remains readable if browser storage is full.
+      }
+      return legacyTree;
+    }
+
+    return NARRATIVE_STORY_TREE;
+  }
+
+  private switchStorageScope(userId: string | null): void {
+    const nextScope = userId ? `user:${userId}` : ANONYMOUS_STORAGE_SCOPE;
+    if (nextScope === this.activeStorageScope) return;
+
+    if (this.cloudSyncDebounceTimer) {
+      clearTimeout(this.cloudSyncDebounceTimer);
+      this.cloudSyncDebounceTimer = null;
+    }
+    // Invalidate writes captured under the previous account/workspace.
+    this.cloudSyncVersion++;
+    this.activeStorageScope = nextScope;
+
+    const storedTree = this.readStoredTree(this.activeStoryStorageKey());
+    const nextTree = storedTree || NARRATIVE_STORY_TREE;
+    this.currentTree.set(nextTree);
+    this.selectedNodeId.set(nextTree.rootNodeId || Object.keys(nextTree.nodes)[0] || '');
+    this.loreBible.set(nextTree.loreBible || (nextTree.id === NARRATIVE_STORY_TREE.id ? DEFAULT_LORE : []));
+    this.styleConfig.set(nextTree.styleConfig || DEFAULT_STYLE);
+    this.previousChapterContent.set(null);
+    this.activeAiSuggestions.set([]);
+  }
+
+  private activeStoryStorageKey(scope = this.activeStorageScope): string {
+    return `${STORAGE_KEY}:${scope}`;
+  }
+
+  private cloudBaselineStorageKey(scope = this.activeStorageScope): string {
+    return `${CLOUD_BASELINE_KEY}:${scope}`;
+  }
+
+  private hasStoredTreeForActiveScope(): boolean {
+    return this.readStoredTree(this.activeStoryStorageKey()) !== null;
+  }
+
+  private readStoredTree(storageKey: string): StoryTree | null {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return null;
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed?.rootNodeId && parsed?.nodes ? parsed as StoryTree : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private toStoragePayload(tree: StoryTree): StoryTree {
+    return {
+      ...tree,
+      loreBible: this.loreBible(),
+      styleConfig: this.styleConfig()
+    };
+  }
+
+  private storyFingerprint(tree: StoryTree): string {
+    return JSON.stringify(this.toStoragePayload(tree));
+  }
+
+  private markCloudBaseline(tree: StoryTree, storageScope = this.activeStorageScope): void {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && parsed.rootNodeId && parsed.nodes) {
-            return parsed;
-          }
-        }
+        window.localStorage.setItem(this.cloudBaselineStorageKey(storageScope), this.storyFingerprint(tree));
       }
     } catch {
-      // Fallback
+      // Baselines improve conflict detection but must not block writing.
     }
-    return NARRATIVE_STORY_TREE;
   }
 
   private loadInitialTheme(): ReaderTheme {
