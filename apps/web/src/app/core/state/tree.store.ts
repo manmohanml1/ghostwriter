@@ -916,6 +916,16 @@ export class TreeStore {
     }
   }
 
+  applyCloudRevision(revision: number): void {
+    const updated = { ...this.currentTree(), cloudRevision: revision };
+    this.currentTree.set(updated);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(this.activeStoryStorageKey(), JSON.stringify(this.toStoragePayload(updated)));
+      }
+    } catch {}
+  }
+
   private saveToStorage(tree: StoryTree): void {
     try {
       const payload = this.toStoragePayload(tree);
@@ -960,6 +970,9 @@ export class TreeStore {
 
         const result = await this.supabase.syncStoryToCloud(payload);
         if (result.success) {
+          if (result.revision !== undefined && payload.id === this.currentTree().id) {
+            this.applyCloudRevision(result.revision);
+          }
           this.markCloudBaseline(payload, storageScope);
         }
       })

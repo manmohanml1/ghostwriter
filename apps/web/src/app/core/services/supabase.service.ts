@@ -314,7 +314,7 @@ export class SupabaseService {
   /**
    * Real Cloud Sync: Persists Stories, Nodes, Edges, and Lore into PostgreSQL tables
    */
-  async syncStoryToCloud(tree: StoryTree): Promise<{ success: boolean; message: string }> {
+  async syncStoryToCloud(tree: StoryTree): Promise<{ success: boolean; message: string; revision?: number; conflict?: boolean }> {
     if (!this.client || !this.isCloudConfigured()) {
       this.syncStatus.set('LOCAL_SANDBOX');
       return {
@@ -344,6 +344,7 @@ export class SupabaseService {
         genre: tree.genre || 'Cyberpunk',
         root_node_id: tree.rootNodeId ? toCloudEntityId(storyUUID, tree.rootNodeId) : null,
         style_config: tree.styleConfig || {},
+        expected_revision: tree.cloudRevision ?? 0,
         updated_at: new Date().toISOString()
       };
 
@@ -383,7 +384,7 @@ export class SupabaseService {
         traits: l.traits || []
       }));
 
-      const { error: syncErr } = await this.client.rpc('sync_story_tree', {
+      const { data: revision, error: syncErr } = await this.client.rpc('sync_story_tree_v2', {
         p_story: storyPayload,
         p_nodes: nodePayloads,
         p_edges: edgePayloads,
@@ -395,12 +396,19 @@ export class SupabaseService {
       this.lastSyncTime.set(new Date().toLocaleTimeString());
       await this.fetchUserStories();
 
-      return { success: true, message: '✨ Story successfully synced to PostgreSQL Cloud!' };
+      return { success: true, revision: Number(revision), message: '✨ Story successfully synced to PostgreSQL Cloud!' };
     } catch (err: any) {
       console.error('Real Cloud Sync failed:', err);
       this.syncStatus.set('SYNC_ERROR');
       this.syncErrorMessage.set(err.message || 'Database error');
-      return { success: false, message: `Cloud Sync Error: ${err.message || 'PostgreSQL transaction failed'}` };
+      const isConflict = String(err.message || '').includes('STORY_REVISION_CONFLICT');
+      return {
+        success: false,
+        conflict: isConflict,
+        message: isConflict
+          ? 'Cloud conflict: another device saved this story first. Your local draft is safe; open the cloud copy to review it.'
+          : `Cloud Sync Error: ${err.message || 'PostgreSQL transaction failed'}`
+      };
     }
   }
 
@@ -478,7 +486,8 @@ export class SupabaseService {
         loreBible,
         createdAt: story.created_at,
         updatedAt: story.updated_at,
-        version: 1
+        version: 1,
+        cloudRevision: Number(story.revision || 0)
       };
     } catch (err) {
       console.error('Failed to load story from cloud:', err);

@@ -78,6 +78,7 @@ export class AuthModalComponent {
     const res = await this.supabase.syncStoryToCloud(this.store.currentTree());
     this.isSubmitting.set(false);
     if (res.success) {
+      if (res.revision !== undefined) this.store.applyCloudRevision(res.revision);
       this.store.markCurrentTreeAsSynced();
     }
     this.statusMessage.set(res.message);

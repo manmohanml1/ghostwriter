@@ -142,6 +142,7 @@ export interface StoryTree {
   createdAt: string;
   updatedAt: string;
   version: number;
+  /** Server revision used to reject stale writes from another device. */
+  cloudRevision?: number;
 }
-
 
