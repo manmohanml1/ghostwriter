@@ -26,7 +26,10 @@ jobs:
       - name: Build Contracts Package
         run: npm --workspace=@ghostwriter/contracts run build --if-present
 
-      - name: Run End-to-End Regression Test Suite
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Regression, API, and Browser Test Suites
         run: npm --workspace=web run test
 
       - name: Build Web Application
