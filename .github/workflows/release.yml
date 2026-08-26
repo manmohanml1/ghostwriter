@@ -15,23 +15,49 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - name: Checkout complete history
+        uses: actions/checkout@v4
         with:
-          node-version: 20
+          fetch-depth: 0
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Verify annotated tag and release source
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          test "$(git cat-file -t "$RELEASE_TAG")" = "tag" || {
+            echo "Release tags must be annotated."
+            exit 1
+          }
+          git fetch origin master --no-tags
+          release_commit="$(git rev-list -n 1 "$RELEASE_TAG")"
+          git merge-base --is-ancestor "$release_commit" origin/master || {
+            echo "Release tag must point to a commit reachable from origin/master."
+            exit 1
+          }
+          expected_version="${RELEASE_TAG#v}"
+          root_version="$(node -p "require('./package.json').version")"
+          web_version="$(node -p "require('./apps/web/package.json').version")"
+          test "$root_version" = "$expected_version" && test "$web_version" = "$expected_version" || {
+            echo "Tag, root package, and web package versions must match."
+            exit 1
+          }
 
-      - name: Build Contracts Package
-        run: npm --workspace=@ghostwriter/contracts run build --if-present
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Build Web Application
-        run: npm --workspace=web run build
+      - name: Install Playwright Chromium
+        run: npx --no-install playwright install --with-deps chromium
+
+      - name: Verify release source completely
+        run: npm run verify
 
       - name: Package immutable web artifact
         run: |

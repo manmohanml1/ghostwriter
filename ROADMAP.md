@@ -35,7 +35,7 @@ This document tracks the phased development and release plan for **Ghostwriter**
 
 - [x] **v0.5.0 (Remote GitHub & Cloud Sync Engine)**:
   - Official remote repository: [https://github.com/manmohanml1/ghostwriter](https://github.com/manmohanml1/ghostwriter).
-  - Automated GitHub Actions CI/CD workflow (`.github/workflows/ci.yml`).
+  - Automated GitHub Actions CI/CD workflow (now consolidated in `.github/workflows/quality.yml`).
   - Supabase PostgreSQL schema with Row-Level Security (RLS).
   - In-app Supabase Auth Modal (Email, Google, GitHub, Custom Backend).
 
@@ -66,6 +66,7 @@ This document tracks the phased development and release plan for **Ghostwriter**
 - [x] **Post-v0.5.3 hardening branch**:
   - Atomic authenticated sync, account-scoped drafts, optimistic revisions, bounded storage, and an authenticated server-side AI proxy.
   - Staging verified; production migration and deployment still require explicit approval.
+  - Consolidated CI governance validates browser behavior, migrations, RLS/conflicts, production dependencies, PR metadata, and release provenance.
 
 - [x] **True DAG semantics**:
   - Multi-parent merge edges, cycle rejection, edge-driven reader choices, and shared-descendant-safe pruning/deletion.

@@ -13,6 +13,10 @@ All notable changes to **Ghostwriter** are documented in this file in accordance
 - Added true multi-parent timeline merge edges, cycle prevention, edge-driven traversal, and shared-descendant-safe cleanup.
 - Upgraded Angular 19 to Angular 20; production dependency audit now reports zero advisories.
 - Added keyboard-operable graph nodes, visible focus states, accessible canvas controls, and large-graph viewport culling.
+- Consolidated duplicate GitHub Actions into one required aggregate gate covering application tests, Playwright, PostgreSQL migration/RLS/conflict verification, production dependency auditing, PR titles, and branch naming.
+- Added Dependabot, CODEOWNERS, CodeQL, contributor/security guidance, annotated-tag release preflight checks, and repository-owned migration validation.
+- Corrected architecture, cost, deployment, AI credential, branch, and release documentation to match the hardened implementation.
+- Removed the stale nested Angular 19 lockfile and unused deprecated Angular browser/animation packages so the monorepo has one authoritative dependency lock.
 
 ## [0.5.3] - 2026-08-23
 
@@ -58,7 +62,7 @@ All notable changes to **Ghostwriter** are documented in this file in accordance
 
 ### Added
 - Linked official remote GitHub repository at `https://github.com/manmohanml1/ghostwriter`.
-- Automated GitHub Actions CI/CD workflow (`.github/workflows/ci.yml`) validating contracts, tests, and production builds.
+- Automated GitHub Actions CI/CD workflow validating contracts, tests, and production builds (later consolidated in `.github/workflows/quality.yml`).
 - Supabase PostgreSQL schema (`infrastructure/supabase/schema.sql`) with Row-Level Security (RLS) policies.
 - In-App `AuthModalComponent` supporting Email/Password, Google OAuth, GitHub OAuth, and custom Supabase backend configuration.
 - Header Account and Cloud Sync Status Pill (`👤 Account` / `☁️ Synced` / `💾 Local Mode`).

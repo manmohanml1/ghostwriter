@@ -15,13 +15,11 @@
     "test:e2e": "npm run test:integration"
   },
   "dependencies": {
-    "@angular/animations": "^20.3.29",
     "@angular/common": "^20.3.29",
     "@angular/compiler": "^20.3.29",
     "@angular/core": "^20.3.29",
     "@angular/forms": "^20.3.29",
     "@angular/platform-browser": "^20.3.29",
-    "@angular/platform-browser-dynamic": "^20.3.29",
     "@angular/router": "^20.3.29",
     "@supabase/supabase-js": "^2.112.3",
     "rxjs": "~7.8.0",

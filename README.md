@@ -1,7 +1,7 @@
 # ✍️ Ghostwriter — AI Co-Writing Studio & Branching Webnovel Engine
 
 [![Production Deployment](https://img.shields.io/badge/Vercel-Production%20Live-success.svg)](https://web-green-beta-4giz07ncu3.vercel.app)
-[![CI Build](https://github.com/manmohanml1/ghostwriter/actions/workflows/ci.yml/badge.svg)](https://github.com/manmohanml1/ghostwriter/actions)
+[![CI Build](https://github.com/manmohanml1/ghostwriter/actions/workflows/quality.yml/badge.svg)](https://github.com/manmohanml1/ghostwriter/actions/workflows/quality.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
 [![Angular 20](https://img.shields.io/badge/Angular-20.3-dd0031.svg)](https://angular.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org)
@@ -98,7 +98,8 @@ Open **`http://localhost:4200`** to run the local workspace.
 ```text
 ghostwriter/
 ├── .github/workflows/         # Automated GitHub Actions CI/CD pipelines
-│   └── ci.yml
+│   ├── quality.yml            # Required app, database, audit, and policy gate
+│   └── release.yml            # Annotated-tag release verification and packaging
 ├── apps/
 │   └── web/                   # Angular 20 standalone single-page app
 │       ├── src/app/core/      # Reactive TreeStore, AIGeneratorService, Fixtures
