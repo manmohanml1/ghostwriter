@@ -4,6 +4,21 @@ All notable changes to **Ghostwriter** are documented in this file in accordance
 
 ---
 
+## [Unreleased] - Hardening
+
+- Added account-scoped local workspaces and optimistic cloud revisions to prevent cross-account and two-device overwrites.
+- Added transactional story sync, staging integration tests, and real Playwright browser flows.
+- Moved Gemini/Groq traffic behind an authenticated Vercel Function; browser-stored provider keys are removed.
+- Added chapter, node, lore, and browser-payload limits with visible save failures.
+- Added true multi-parent timeline merge edges, cycle prevention, edge-driven traversal, and shared-descendant-safe cleanup.
+- Upgraded Angular 19 to Angular 20; production dependency audit now reports zero advisories.
+- Added keyboard-operable graph nodes, visible focus states, accessible canvas controls, and large-graph viewport culling.
+- Consolidated duplicate GitHub Actions into one required aggregate gate covering application tests, Playwright, PostgreSQL migration/RLS/conflict verification, production dependency auditing, PR titles, and branch naming.
+- Added Dependabot, CODEOWNERS, CodeQL, contributor/security guidance, annotated-tag release preflight checks, and repository-owned migration validation.
+- Corrected architecture, cost, deployment, AI credential, branch, and release documentation to match the hardened implementation.
+- Removed the stale nested Angular 19 lockfile and unused deprecated Angular browser/animation packages so the monorepo has one authoritative dependency lock.
+- Restricted browser-to-proxy provider routing to exact HTTPS Gemini and Groq hostnames, rejecting credential-bearing, port-qualified, malformed, and lookalike URLs.
+
 ## [0.5.3] - 2026-08-23
 
 ### Added
@@ -17,7 +32,7 @@ All notable changes to **Ghostwriter** are documented in this file in accordance
 - **Sequential Sibling Lettering System**: Automatically identifies existing child branch letters (`Path A/B/C`) and generates fresh subsequent letters (`Path D/E/F`).
 - **Canon Path Title Sanitization & Spine Export**: Strips temporary `Path X:` prefixes upon canon promotion and traverses the true canon spine during Markdown novel export.
 - **Single Canon Sibling Invariant & DAG Cycle Guard**: Automated sibling reconciliation on story load and cycle prevention in breadcrumb traversals.
-- **Comprehensive Regression Test Expansion**: 23 test suites with 65 automated end-to-end assertions.
+- **Comprehensive Regression Test Expansion**: 23 lightweight regression suites with 65 assertions, supplemented by real Playwright browser workflows.
 
 ---
 
@@ -39,7 +54,7 @@ All notable changes to **Ghostwriter** are documented in this file in accordance
 - **In-Place Cloud Story Updates**: Deterministic UUID stability resolving duplicate database insertions during multi-session editing.
 - **Multi-Account PostgreSQL Cloud Isolation**: User-scoped deterministic UUIDs ensuring 50+ concurrent author accounts with zero primary key collisions.
 - **Story Switcher & Cloud Catalog**: Multi-story catalog in top navigation bar and cloud modal for 1-click project switching.
-- **Comprehensive Regression Suite**: 10 scenario tests covering graph DAG operations, cascade pruning, undo snapshots, and RFC-4122 UUID compliance running pre-build and in CI.
+- **Comprehensive Regression Suite**: 10 scenario tests covering story-tree operations, cascade pruning, undo snapshots, and RFC-4122 UUID compliance running pre-build and in CI.
 - **Mobile Navigation Suite**: Persistent cloud indicator, editor quick toggle, and slide-over menu drawer for mobile viewports.
 
 ---
@@ -48,7 +63,7 @@ All notable changes to **Ghostwriter** are documented in this file in accordance
 
 ### Added
 - Linked official remote GitHub repository at `https://github.com/manmohanml1/ghostwriter`.
-- Automated GitHub Actions CI/CD workflow (`.github/workflows/ci.yml`) validating contracts, tests, and production builds.
+- Automated GitHub Actions CI/CD workflow validating contracts, tests, and production builds (later consolidated in `.github/workflows/quality.yml`).
 - Supabase PostgreSQL schema (`infrastructure/supabase/schema.sql`) with Row-Level Security (RLS) policies.
 - In-App `AuthModalComponent` supporting Email/Password, Google OAuth, GitHub OAuth, and custom Supabase backend configuration.
 - Header Account and Cloud Sync Status Pill (`👤 Account` / `☁️ Synced` / `💾 Local Mode`).
@@ -91,6 +106,6 @@ All notable changes to **Ghostwriter** are documented in this file in accordance
 
 ### Added
 - Initial monorepo workspace scaffold with Angular 19 standalone web app and `@ghostwriter/contracts`.
-- Interactive SVG Directed Acyclic Graph (DAG) canvas with pan, zoom, and cubic bezier spline connectors.
+- Interactive SVG branching-tree canvas with pan, zoom, and cubic bezier spline connectors.
 - Reactive `TreeStore` with browser `IndexedDB` persistence.
 - Node inspector with Markdown editing and node status lifecycle (*Active*, *Canon*, *Pruned*).

@@ -27,6 +27,12 @@ export function toUUID(str: string): string {
   return `${full.slice(0, 8)}-${full.slice(8, 12)}-4${full.slice(13, 16)}-a${full.slice(17, 20)}-${full.slice(20, 32)}`;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function toCloudEntityId(storyId: string, id: string): string {
+  return UUID_REGEX.test(id) ? id : toUUID(`${storyId}:${id}`);
+}
+
 const SUPABASE_URL_STORAGE = 'ghostwriter_supabase_url';
 const SUPABASE_KEY_STORAGE = 'ghostwriter_supabase_anon_key';
 
@@ -305,10 +311,16 @@ export class SupabaseService {
     this.userCloudStories.set([]);
   }
 
+  async getAccessToken(): Promise<string> {
+    if (!this.client) return '';
+    const { data } = await this.client.auth.getSession();
+    return data.session?.access_token || '';
+  }
+
   /**
    * Real Cloud Sync: Persists Stories, Nodes, Edges, and Lore into PostgreSQL tables
    */
-  async syncStoryToCloud(tree: StoryTree): Promise<{ success: boolean; message: string }> {
+  async syncStoryToCloud(tree: StoryTree): Promise<{ success: boolean; message: string; revision?: number; conflict?: boolean }> {
     if (!this.client || !this.isCloudConfigured()) {
       this.syncStatus.set('LOCAL_SANDBOX');
       return {
@@ -327,84 +339,82 @@ export class SupabaseService {
     this.syncErrorMessage.set(null);
 
     try {
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tree.id);
+      const isUUID = UUID_REGEX.test(tree.id);
       const storyUUID = isUUID ? tree.id : toUUID(`${user.id}:${tree.id}`);
 
-      // 1. Upsert Story Header (updates in place without duplicates)
-      const { error: storyErr } = await this.client.from('stories').upsert({
+      const storyPayload = {
         id: storyUUID,
         user_id: user.id,
         title: tree.title,
         description: tree.description || '',
         genre: tree.genre || 'Cyberpunk',
+        root_node_id: tree.rootNodeId ? toCloudEntityId(storyUUID, tree.rootNodeId) : null,
         style_config: tree.styleConfig || {},
+        expected_revision: tree.cloudRevision ?? 0,
         updated_at: new Date().toISOString()
-      });
-      if (storyErr) throw storyErr;
+      };
 
-      // 2. Upsert Nodes in Batches
       const nodeArray = Object.values(tree.nodes || {});
-      if (nodeArray.length > 0) {
-        const nodePayloads = nodeArray.map(n => ({
-          id: toUUID(`${storyUUID}:${n.id}`),
-          story_id: storyUUID,
-          parent_node_id: n.parentNodeId ? toUUID(`${storyUUID}:${n.parentNodeId}`) : null,
-          title: n.title,
-          content: n.content,
-          author_type: n.authorType || 'HUMAN',
-          agent_persona: n.agentPersona || null,
-          status: n.status || 'ACTIVE',
-          coherence_score: n.coherenceScore || null,
-          depth: n.depth || 0,
-          word_count: n.wordCount || 0,
-          created_at: n.createdAt || new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }));
+      const nodePayloads = nodeArray.map(n => ({
+        id: toCloudEntityId(storyUUID, n.id),
+        parent_node_id: n.parentNodeId ? toCloudEntityId(storyUUID, n.parentNodeId) : null,
+        title: n.title,
+        content: n.content,
+        author_type: n.authorType || 'HUMAN',
+        agent_persona: n.agentPersona || null,
+        status: n.status || 'ACTIVE',
+        coherence_score: n.coherenceScore || null,
+        depth: n.depth || 0,
+        word_count: n.wordCount || 0,
+        position_x: n.position?.x ?? 0,
+        position_y: n.position?.y ?? 0,
+        created_at: n.createdAt || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }));
 
-        const { error: nodeErr } = await this.client.from('tree_nodes').upsert(nodePayloads);
-        if (nodeErr) throw nodeErr;
-      }
+      const edgePayloads = (tree.edges || []).map(e => ({
+        id: e.id && UUID_REGEX.test(e.id)
+          ? e.id
+          : toUUID(`${storyUUID}:${e.id || `${e.sourceNodeId}->${e.targetNodeId}`}`),
+        source_node_id: toCloudEntityId(storyUUID, e.sourceNodeId),
+        target_node_id: toCloudEntityId(storyUUID, e.targetNodeId),
+        edge_type: e.edgeType || 'BRANCH',
+        label: e.label || null
+      }));
 
-      // 3. Upsert Edges
-      if (tree.edges && tree.edges.length > 0) {
-        const edgePayloads = tree.edges.map(e => ({
-          id: toUUID(`${storyUUID}:${e.id || `${e.sourceNodeId}->${e.targetNodeId}`}`),
-          story_id: storyUUID,
-          source_node_id: toUUID(`${storyUUID}:${e.sourceNodeId}`),
-          target_node_id: toUUID(`${storyUUID}:${e.targetNodeId}`),
-          edge_type: e.edgeType || 'BRANCH',
-          label: e.label || null
-        }));
+      const lorePayloads = (tree.loreBible || []).map(l => ({
+        id: l.id && UUID_REGEX.test(l.id) ? l.id : toUUID(`${storyUUID}:${l.id || l.name}`),
+        name: l.name,
+        category: l.category || 'CHARACTER',
+        description: l.description || '',
+        traits: l.traits || []
+      }));
 
-        const { error: edgeErr } = await this.client.from('tree_edges').upsert(edgePayloads);
-        if (edgeErr) throw edgeErr;
-      }
-
-      // 4. Upsert Lore Entities
-      if (tree.loreBible && tree.loreBible.length > 0) {
-        const lorePayloads = tree.loreBible.map(l => ({
-          id: toUUID(`${storyUUID}:${l.id || l.name}`),
-          story_id: storyUUID,
-          name: l.name,
-          category: l.category || 'CHARACTER',
-          description: l.description || '',
-          traits: l.traits || []
-        }));
-
-        const { error: loreErr } = await this.client.from('lore_entities').upsert(lorePayloads);
-        if (loreErr) throw loreErr;
-      }
+      const { data: revision, error: syncErr } = await this.client.rpc('sync_story_tree_v2', {
+        p_story: storyPayload,
+        p_nodes: nodePayloads,
+        p_edges: edgePayloads,
+        p_lore: lorePayloads
+      });
+      if (syncErr) throw syncErr;
 
       this.syncStatus.set('SYNCED_CLOUD');
       this.lastSyncTime.set(new Date().toLocaleTimeString());
       await this.fetchUserStories();
 
-      return { success: true, message: '✨ Story successfully synced to PostgreSQL Cloud!' };
+      return { success: true, revision: Number(revision), message: '✨ Story successfully synced to PostgreSQL Cloud!' };
     } catch (err: any) {
       console.error('Real Cloud Sync failed:', err);
       this.syncStatus.set('SYNC_ERROR');
       this.syncErrorMessage.set(err.message || 'Database error');
-      return { success: false, message: `Cloud Sync Error: ${err.message || 'PostgreSQL transaction failed'}` };
+      const isConflict = String(err.message || '').includes('STORY_REVISION_CONFLICT');
+      return {
+        success: false,
+        conflict: isConflict,
+        message: isConflict
+          ? 'Cloud conflict: another device saved this story first. Your local draft is safe; open the cloud copy to review it.'
+          : `Cloud Sync Error: ${err.message || 'PostgreSQL transaction failed'}`
+      };
     }
   }
 
@@ -447,6 +457,7 @@ export class SupabaseService {
           coherenceScore: n.coherence_score,
           depth: n.depth || 0,
           wordCount: n.word_count || 0,
+          position: { x: Number(n.position_x || 0), y: Number(n.position_y || 0) },
           createdAt: n.created_at,
           updatedAt: n.updated_at
         };
@@ -475,13 +486,14 @@ export class SupabaseService {
         description: story.description,
         genre: story.genre,
         styleConfig: story.style_config || undefined,
-        rootNodeId: firstNodeId,
+        rootNodeId: story.root_node_id || firstNodeId,
         nodes: nodeRecord,
         edges,
         loreBible,
         createdAt: story.created_at,
         updatedAt: story.updated_at,
-        version: 1
+        version: 1,
+        cloudRevision: Number(story.revision || 0)
       };
     } catch (err) {
       console.error('Failed to load story from cloud:', err);

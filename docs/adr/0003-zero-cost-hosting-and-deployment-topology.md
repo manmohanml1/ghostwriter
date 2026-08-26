@@ -1,6 +1,6 @@
 # ADR 0003: Zero-Cost Hosting and Deployment Topology
 
-- **Status**: Accepted
+- **Status**: Superseded in part by ADR 0006 for AI credential placement. Historical BYOK references describe the earlier implementation.
 - **Date**: 2026-08-22
 - **Deciders**: Lead Architect, Core Team
 

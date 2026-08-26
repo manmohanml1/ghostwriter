@@ -10,14 +10,16 @@
   (touchend)="onTouchEnd()"
   (wheel)="onWheel($event)"
   tabindex="0"
+  role="region"
+  aria-label="Interactive story graph. Left and right move between parent and remembered child; up and down move between branches."
   (keydown)="onKeyDown($event)"
 >
   <!-- Canvas Navigation Controls Overlay -->
   <div class="canvas-controls">
-    <button class="btn-control" (click)="zoomIn()" title="Zoom In">+</button>
-    <span class="zoom-indicator">{{ (store.zoomLevel() * 100) | number:'1.0-0' }}%</span>
-    <button class="btn-control" (click)="zoomOut()" title="Zoom Out">-</button>
-    <button class="btn-control btn-fit" (click)="resetView()" title="Fit View">⛶ Fit</button>
+    <button class="btn-control" (click)="zoomIn()" title="Zoom In" aria-label="Zoom in">+</button>
+    <span class="zoom-indicator" aria-live="polite">{{ (store.zoomLevel() * 100) | number:'1.0-0' }}%</span>
+    <button class="btn-control" (click)="zoomOut()" title="Zoom Out" aria-label="Zoom out">-</button>
+    <button class="btn-control btn-fit" (click)="resetView()" title="Fit View" aria-label="Reset zoom and position">⛶ Fit</button>
   </div>
 
   <!-- Graph Surface Container with Scale & Pan -->
@@ -26,7 +28,7 @@
     [style.transform]="'translate(' + panX() + 'px, ' + panY() + 'px) scale(' + store.zoomLevel() + ')'"
   >
     <!-- SVG Connecting Curves Layer -->
-    <svg class="edges-layer" width="4000" height="3000">
+    <svg class="edges-layer" [attr.width]="canvasBounds().width" [attr.height]="canvasBounds().height" aria-hidden="true">
       <defs>
         <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stop-color="#6366f1" stop-opacity="0.8" />
@@ -42,7 +44,7 @@
         </filter>
       </defs>
 
-      @for (edge of computedEdges(); track edge.id) {
+      @for (edge of renderedEdges(); track edge.id) {
         <path
           [attr.d]="edge.path"
           class="edge-path"
@@ -73,9 +75,13 @@
 
     <!-- HTML Node Cards Layer -->
     <div class="nodes-layer">
-      @for (node of computedNodes(); track node.id) {
+      @for (node of renderedNodes(); track node.id) {
         <div
           class="node-card"
+          role="button"
+          [attr.tabindex]="store.selectedNodeId() === node.id ? 0 : -1"
+          [attr.aria-pressed]="store.selectedNodeId() === node.id"
+          [attr.aria-label]="'Chapter ' + (node.depth + 1) + ': ' + node.title"
           [class.selected]="store.selectedNodeId() === node.id"
           [class.canon]="node.status === 'CANON_PATH'"
           [class.pruned]="node.status === 'PRUNED'"
@@ -83,6 +89,7 @@
           [style.left.px]="node.x"
           [style.top.px]="node.y"
           (click)="onNodeClick($event, node.id)"
+          (keydown)="onNodeKeyDown($event, node.id)"
         >
           <!-- Card Header / Author Badge -->
           <div class="node-header">

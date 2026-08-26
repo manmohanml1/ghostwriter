@@ -51,6 +51,15 @@ export class NodeInspectorComponent {
   newBranchTitle = '';
   newBranchContent = '';
   newBranchAuthor: AuthorType = 'HUMAN';
+  mergeTargetId = '';
+
+  readonly mergeCandidates = computed(() => {
+    const active = this.store.selectedNode();
+    if (!active) return [];
+    return Object.values(this.store.currentTree().nodes)
+      .filter(node => node.status !== 'PRUNED' && this.store.canLinkNodes(active.id, node.id))
+      .sort((left, right) => left.depth - right.depth || left.title.localeCompare(right.title));
+  });
 
   onTitleChange(title: string): void {
     const active = this.store.selectedNode();
@@ -63,6 +72,14 @@ export class NodeInspectorComponent {
     const active = this.store.selectedNode();
     if (active) {
       this.store.updateNode(active.id, { content });
+    }
+  }
+
+  submitTimelineMerge(): void {
+    const active = this.store.selectedNode();
+    if (!active || !this.mergeTargetId) return;
+    if (this.store.linkExistingNode(active.id, this.mergeTargetId)) {
+      this.mergeTargetId = '';
     }
   }
 

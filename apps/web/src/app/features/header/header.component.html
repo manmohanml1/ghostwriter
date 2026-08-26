@@ -81,7 +81,7 @@
       class="ai-telemetry-pill"
       [attr.data-provider]="aiService.telemetry().activeProvider"
       (click)="openSettingsEvent.emit()"
-      title="Click to configure AI Keys"
+      title="Server-managed AI status and model settings"
     >
       <span class="ai-pulse-dot"></span>
       <span>
@@ -91,9 +91,9 @@
       </span>
     </div>
 
-    <!-- AI Keys Settings -->
+    <!-- Server-managed AI model settings -->
     <button class="action-btn" (click)="openSettingsEvent.emit()" title="AI API Keys">
-      ⚙️ AI Keys
+      ⚙️ AI Models
     </button>
 
     <!-- Export Dropdown -->
@@ -114,7 +114,7 @@
             <span>💾</span>
             <div>
               <div class="font-bold text-xs text-white">Story Tree (.json)</div>
-              <div class="text-xxs text-slate-400">Full DAG graph & Lore Bible</div>
+              <div class="text-xxs text-slate-400">Full story graph & Lore Bible</div>
             </div>
           </button>
         </div>

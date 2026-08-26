@@ -5,32 +5,34 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "prebuild": "npm test",
+    "prebuild": "npm run test:regression && npm run test:api",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "node scripts/run-regression-tests.mjs",
-    "test:e2e": "playwright test"
+    "test": "npm run test:regression && npm run test:api && npm run test:integration",
+    "test:regression": "node scripts/run-regression-tests.mjs",
+    "test:api": "node --test scripts/test-ai-proxy.mjs",
+    "test:integration": "npx --no-install playwright test",
+    "test:e2e": "npm run test:integration"
   },
   "dependencies": {
-    "@angular/animations": "^19.1.0",
-    "@angular/common": "^19.1.0",
-    "@angular/compiler": "^19.1.0",
-    "@angular/core": "^19.1.0",
-    "@angular/forms": "^19.1.0",
-    "@angular/platform-browser": "^19.1.0",
-    "@angular/platform-browser-dynamic": "^19.1.0",
-    "@angular/router": "^19.1.0",
+    "@angular/common": "^20.3.29",
+    "@angular/compiler": "^20.3.29",
+    "@angular/core": "^20.3.29",
+    "@angular/forms": "^20.3.29",
+    "@angular/platform-browser": "^20.3.29",
+    "@angular/router": "^20.3.29",
     "@supabase/supabase-js": "^2.112.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "^19.1.0",
-    "@angular/cli": "^19.1.0",
-    "@angular/compiler-cli": "^19.1.0",
+    "@angular-devkit/build-angular": "^20.3.34",
+    "@angular/cli": "^20.3.34",
+    "@angular/compiler-cli": "^20.3.29",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.0.0",
     "playwright": "^1.62.1",
-    "typescript": "~5.7.2"
+    "typescript": "~5.9.3"
   }
 }

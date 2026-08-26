@@ -6,7 +6,7 @@ This document tracks the phased development and release plan for **Ghostwriter**
 
 ## Phase 1: Local-First Studio Engine (v0.1.0 – v0.4.0) — ✅ Completed
 
-- [x] **v0.1.0 (Scaffold & DAG Visual Canvas)**:
+- [x] **v0.1.0 (Scaffold & Branching-Tree Visual Canvas)**:
   - Strict TypeScript domain contracts in `@ghostwriter/contracts`.
   - Reactive Signal Store (`TreeStore`) with local browser persistence.
   - Interactive SVG canvas with zoom, pan, and cubic bezier spline routing.
@@ -35,7 +35,7 @@ This document tracks the phased development and release plan for **Ghostwriter**
 
 - [x] **v0.5.0 (Remote GitHub & Cloud Sync Engine)**:
   - Official remote repository: [https://github.com/manmohanml1/ghostwriter](https://github.com/manmohanml1/ghostwriter).
-  - Automated GitHub Actions CI/CD workflow (`.github/workflows/ci.yml`).
+  - Automated GitHub Actions CI/CD workflow (now consolidated in `.github/workflows/quality.yml`).
   - Supabase PostgreSQL schema with Row-Level Security (RLS).
   - In-app Supabase Auth Modal (Email, Google, GitHub, Custom Backend).
 
@@ -52,7 +52,7 @@ This document tracks the phased development and release plan for **Ghostwriter**
   - 1-Click reset to default cloud backend.
   - Upgraded custom backend glassmorphism action styling.
 
-- [x] **v0.5.3 (DAG Lifecycle Hardening, Pure Dynamic Synthesis, Gemini 3.6 & Mobile Architecture)**:
+- [x] **v0.5.3 (Story-Tree Lifecycle Hardening, Pure Dynamic Synthesis, Gemini 3.6 & Mobile Architecture)**:
   - **Pure Dynamic Narrative Synthesis Engine**: 100% elimination of hardcoded candidate matrices, synthesizing branch hypotheses and continuations from active chapter prose and lore.
   - **Thematic Scene Weaver & Location Seeding**: Classifies chapter themes (Discovery/Anomaly, Infiltration/Stealth, Action/Confrontation) to generate rich, non-overlapping scene prose, with automatic extraction and seeding of named world settings.
   - **Dynamic Model Discovery & Google AI Studio Gemini 3.6**: Auto-queries `ListModels` for `gemini-3.6-flash` and `gemini-3.6-pro`; auto-retries deprecation errors.
@@ -61,7 +61,16 @@ This document tracks the phased development and release plan for **Ghostwriter**
   - **Universal In-Flight Entity Harvester**: 1-click discovery and ingestion of newly introduced characters, locations, factions, and key items into the Lore Bible.
   - **Sequential Sibling Lettering & Canon Sanitization**: Smart `Path D/E/F` lettering; automatic `Path X:` prefix stripping upon canon promotion; single canon sibling reconciliation.
   - **Mobile Slide-up Bottom Sheet Drawer**: 3-state bottom sheet (`PEEK` / `HALF` / `FULL`) with floating canvas controls and segmented navigation.
-  - **Expanded Regression Suite**: 23 test suites with 65 automated end-to-end assertions.
+  - **Expanded Regression Suite**: 65 lightweight engine assertions plus real Playwright browser integration coverage.
+
+- [x] **Post-v0.5.3 hardening branch**:
+  - Atomic authenticated sync, account-scoped drafts, optimistic revisions, bounded storage, and an authenticated server-side AI proxy.
+  - Staging verified; production migration and deployment still require explicit approval.
+  - Consolidated CI governance validates browser behavior, migrations, RLS/conflicts, production dependencies, PR metadata, and release provenance.
+
+- [x] **True DAG semantics**:
+  - Multi-parent merge edges, cycle rejection, edge-driven reader choices, and shared-descendant-safe pruning/deletion.
+  - A primary parent remains as the deterministic default breadcrumb and manuscript route when a chapter has multiple valid histories.
 
 - [ ] **v0.6.0 (Visual Lorebook, Public Story Showcase & Standalone Web Player)**:
   - Visual Character Relationship Network Graph and Keyword Activation Tags.
@@ -86,5 +95,5 @@ This document tracks the phased development and release plan for **Ghostwriter**
   - SVG canvas viewport culling for 1,000+ node trees.
 
 - [ ] **v1.0.0 (Production Launch & Monetization Tiers)**:
-  - Free Tier ($0/mo): Unlimited DAG authoring, full offline engine, 3 public showcase stories.
+  - Free Tier ($0/mo): Unlimited branching-story authoring, full offline engine, 3 public showcase stories.
   - Pro Writer Tier ($8/mo): Managed cloud AI tokens, ePub/PDF export, multiplayer collaborative rooms.

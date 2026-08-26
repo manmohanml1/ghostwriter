@@ -151,6 +151,12 @@
   box-shadow: 0 12px 28px -4px rgba(168, 85, 247, 0.25);
 }
 
+.node-card:focus-visible,
+.btn-control:focus-visible {
+  outline: 3px solid #f8fafc;
+  outline-offset: 3px;
+}
+
 .node-card.selected {
   border-color: #c084fc;
   box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.5), 0 12px 28px -4px rgba(168, 85, 247, 0.4);

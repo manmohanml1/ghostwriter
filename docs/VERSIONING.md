@@ -37,7 +37,9 @@ v1.0.0  Stable production release (Free & Pro Writer tiers)
 
 3. **Automated Release Packaging Workflow** (`.github/workflows/release.yml`):
    - Triggered automatically when an approved tag is pushed to `origin`.
-   - Validates contracts, compiles the production Angular bundle, archives `ghostwriter-web-vX.Y.Z.zip`, and attaches it to the official GitHub Release with auto-generated release notes.
+   - Rejects lightweight tags, tags outside `master`, and package/tag version mismatches.
+   - Runs migration validation, regression/API/browser tests, a production build, and a production dependency audit before packaging `ghostwriter-web-vX.Y.Z.zip`.
+   - The published `v0.5.3` tag predates this enforcement and is lightweight; repairing that remote tag remains a separately approved maintenance action.
 
 ---
 
@@ -57,3 +59,4 @@ To prevent cross-layer coupling, sub-components maintain independent versioning:
 - `fix:` and `perf:` produce a patch version increment (`v0.X.Y`).
 - `feat!:` or `BREAKING CHANGE:` produces a major version increment (`v1.0.0`).
 - `docs:`, `test:`, `ci:`, and `chore:` are recorded in `CHANGELOG.md` without forcing an immediate product release alone.
+- An application change may be deployed without immediately creating a tag. A release occurs only when the owner explicitly authorizes the annotated tag and GitHub Release.

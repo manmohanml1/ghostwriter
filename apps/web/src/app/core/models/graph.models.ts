@@ -69,6 +69,7 @@ export interface AIBranchSuggestion {
 export interface TreeNode {
   id: string;
   treeId: string;
+  /** Primary parent used for the default breadcrumb/manuscript route. Additional parents live in TreeEdge. */
   parentNodeId: string | null;
   title: string;
   content: string;
@@ -142,6 +143,6 @@ export interface StoryTree {
   createdAt: string;
   updatedAt: string;
   version: number;
+  /** Server revision used to reject stale writes from another device. */
+  cloudRevision?: number;
 }
-
-

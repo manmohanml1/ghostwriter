@@ -1,35 +1,37 @@
-## Summary & Purpose
+## Purpose
 
-<!-- Explain what this PR accomplishes, why it was needed, and what user value it delivers. -->
+<!-- Describe the problem, intended outcome, and user impact. -->
 
----
+## Scope
 
-## 🎯 Reference Models & Beyond
+<!-- List the affected product, data, API, deployment, or documentation boundaries. -->
 
-- [x] **Reference Model Checked**: Evaluated against established standards (e.g. CommitQuest governance, e-reader ergonomics).
-- [x] **Beyond the Baseline**: How this implementation exceeds or improves upon existing reference implementations (e.g. visual DAG engine, tri-provider failover, deep 1,500w novel expander).
+## Risk and recovery
 
----
+<!-- Describe failure modes, compatibility concerns, and the safe recovery path. -->
 
-## 🛡️ Non-Negotiable Quality & Governance Checklist
+## Verification
 
-- [ ] **Standard Branch Naming**: Branch uses a standard prefix (`feat/`, `fix/`, `docs/`, `refactor/`, `chore/` — never `codex/...`).
-- [ ] **Zero Direct Commits to Master**: All commits isolated to this feature branch.
-- [ ] **Zero Pre-Merge Prod Deployments**: Verified strictly in `dev`, `test`, or `stage` (Preview). No `vercel --prod` executed before merge.
-- [ ] **Explicit Owner Approval Gate**: This PR will NOT be merged until the owner explicitly instructs `"merge"`.
-- [ ] **Deterministic & Offline Invariant**: Studio canvas, reader mode, and local storage operate with 100% fidelity without mandatory cloud connectivity.
-- [ ] **Zero-Cost Constraint Preserved**: No paid cloud infrastructure introduced; stays strictly within $0/month free-tier boundaries.
-- [ ] **Production Build Verified**: `npm run build` executed and passed with exit code `0`.
-- [ ] **Contract Integrity**: All domain models in `@ghostwriter/contracts` and `graph.models.ts` are strictly typed and synchronized.
-- [ ] **Trademark & Documentation Hygiene**: Zero third-party trademark names in public-facing documentation or UI strings.
-- [ ] **Records Updated**: Applicable milestone contract (`docs/milestones/`), `ROADMAP.md`, `CHANGELOG.md`, or ADR (`docs/adr/`) updated.
+- [ ] Focused tests for changed behavior passed
+- [ ] `npm run verify` passed
+- [ ] Desktop and mobile browser review completed when UI changed
+- [ ] Staging authentication/cloud/AI paths tested when affected
+- [ ] No secrets, private story data, or generated output are committed
 
----
+## Data and deployment impact
 
-## 📸 Verification Evidence
+- [ ] No database migration is required
+- [ ] Migration was applied and verified in staging first
+- [ ] Production migration or deployment still requires explicit owner approval
+- [ ] Offline authoring remains usable when cloud or AI providers are unavailable
 
-<!-- Include terminal build logs, screenshot artifacts, or test output proving this PR meets all acceptance criteria. -->
+## Repository records
 
-```text
-[Paste verification build output or test summary here]
-```
+- [ ] Changelog updated for user-visible behavior
+- [ ] Roadmap or milestone records updated when status changed
+- [ ] ADR added or updated for consequential architecture/security decisions
+- [ ] Documentation agrees with the implementation
+
+## Evidence
+
+<!-- Add screenshots, preview links, test output summaries, and exact commit SHA where useful. -->

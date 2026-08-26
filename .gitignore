@@ -30,3 +30,5 @@ media_*.png
 apps/web/videos/
 apps/web/scripts/record-*.mjs
 
+.vercel
+supabase/.temp/

@@ -1,7 +1,8 @@
-name: Ghostwriter Quality & CI
+name: Ghostwriter Quality
 
 on:
   pull_request:
+    branches: [master, main]
   push:
     branches: [master, main]
   workflow_dispatch:
@@ -14,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pull-request-title:
+  pull-request-policy:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -24,41 +25,53 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|refactor|perf|test|build|ci|chore|revert)(\(.+\))?!?:[[:space:]].+ ]]; then
-            echo "Error: PR title must follow Conventional Commits (e.g. 'feat: add public showcase links' or 'fix(auth): resolve modal clipping')."
+            echo "Use a Conventional Commit pull-request title, for example: fix(sync): reject stale revisions"
             exit 1
           fi
 
-  verify-and-build:
+      - name: Validate topic branch name
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [[ ! "$HEAD_REF" =~ ^(feat|fix|docs|refactor|perf|test|build|ci|chore|release|codex|dependabot)/[a-z0-9][a-z0-9._-]*$ ]]; then
+            echo "Use an approved topic prefix and a lowercase branch name."
+            exit 1
+          fi
+
+  app-verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - name: Checkout Source Code
+      - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20.x
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 24
+          cache: npm
 
-      - name: Install Dependencies
-        run: npm ci
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Build Contracts Package
+      - name: Install Playwright Chromium
+        run: npx --no-install playwright install --with-deps chromium
+
+      - name: Build contracts
         run: npm --workspace=@ghostwriter/contracts run build --if-present
 
-      - name: Run End-to-End Regression Test Suite
-        run: npm --workspace=web run test
+      - name: Run regression, API, and browser suites
+        run: npm test
 
-      - name: Production Build Web Application
-        run: npm --workspace=web run build
+      - name: Build production web application
+        run: npm run build
 
-      - name: Verify Build Artifacts
+      - name: Verify build outputs
         run: |
-          test -d apps/web/dist/web/browser || (echo "Production browser bundle missing!" && exit 1)
-          echo "Production Angular build verified successfully!"
+          test -d apps/web/dist/web/browser || (echo "Production browser bundle missing" && exit 1)
+          test -f apps/web/dist/web/3rdpartylicenses.txt || (echo "Third-party license inventory missing" && exit 1)
 
-      - name: Upload Immutable Web Artifact
+      - name: Upload immutable web artifact
         uses: actions/upload-artifact@v4
         with:
           name: ghostwriter-web-${{ github.sha }}
@@ -67,3 +80,109 @@ jobs:
             apps/web/dist/web/3rdpartylicenses.txt
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload Playwright diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-diagnostics-${{ github.sha }}
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
+  migration-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: ghostwriter_ci
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ghostwriter_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGDATABASE: ghostwriter_ci
+      PGUSER: postgres
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validate migration filenames and contracts
+        run: node scripts/validate-supabase-migrations.mjs
+
+      - name: Bootstrap Supabase-compatible PostgreSQL roles
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/ci_bootstrap.sql
+
+      - name: Apply baseline schema
+        run: psql -v ON_ERROR_STOP=1 -f infrastructure/supabase/schema.sql
+
+      - name: Apply ordered migrations
+        run: |
+          for migration in supabase/migrations/*.sql; do
+            echo "Applying $migration"
+            psql -v ON_ERROR_STOP=1 -f "$migration"
+          done
+
+      - name: Apply CI grants and run RLS/conflict verification
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/ci_post_schema.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/ci_migration_verification.sql
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Reject high or critical production advisories
+        run: npm run audit:production
+
+  build-and-test:
+    name: build-and-test
+    if: always()
+    needs: [pull-request-policy, app-verify, migration-verify, dependency-audit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Enforce aggregate merge gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          POLICY_RESULT: ${{ needs.pull-request-policy.result }}
+          APP_RESULT: ${{ needs.app-verify.result }}
+          MIGRATION_RESULT: ${{ needs.migration-verify.result }}
+          AUDIT_RESULT: ${{ needs.dependency-audit.result }}
+        run: |
+          test "$APP_RESULT" = "success"
+          test "$MIGRATION_RESULT" = "success"
+          test "$AUDIT_RESULT" = "success"
+          if [[ "$EVENT_NAME" = "pull_request" ]]; then
+            test "$POLICY_RESULT" = "success"
+          else
+            test "$POLICY_RESULT" = "skipped"
+          fi

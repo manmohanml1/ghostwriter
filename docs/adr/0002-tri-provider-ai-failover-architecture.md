@@ -1,6 +1,6 @@
 # ADR 0002: Cascading Tri-Provider AI Failover Architecture
 
-- **Status**: Accepted
+- **Status**: Superseded in part by ADR 0006. Provider failover and the offline fallback remain accepted; browser-held BYOK credentials do not.
 - **Date**: 2026-08-22
 - **Deciders**: Lead Architect, Core Team
 

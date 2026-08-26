@@ -241,6 +241,7 @@
 
           <textarea
             class="textarea-content"
+            aria-label="Chapter content"
             [ngModel]="node.content"
             (ngModelChange)="onContentChange($event)"
             rows="8"
@@ -358,6 +359,24 @@
               <button class="btn-secondary" (click)="showNewBranchForm.set(false)">Cancel</button>
               <button class="btn-primary" (click)="submitNewBranch()">Create Branch</button>
             </div>
+          </div>
+        }
+
+        @if (node.status !== 'PRUNED' && mergeCandidates().length > 0) {
+          <div class="merge-node-card">
+            <label class="form-sublabel" for="merge-target">Merge this timeline into an existing chapter</label>
+            <div class="merge-node-row">
+              <select id="merge-target" [(ngModel)]="mergeTargetId" class="select-beat">
+                <option value="">Choose a chapter…</option>
+                @for (candidate of mergeCandidates(); track candidate.id) {
+                  <option [value]="candidate.id">Chapter {{ candidate.depth + 1 }} — {{ candidate.title }}</option>
+                }
+              </select>
+              <button class="btn-action btn-add-branch" [disabled]="!mergeTargetId" (click)="submitTimelineMerge()">
+                Merge path
+              </button>
+            </div>
+            <p class="merge-node-help">Adds another parent route without copying or overwriting the destination chapter.</p>
           </div>
         }
 

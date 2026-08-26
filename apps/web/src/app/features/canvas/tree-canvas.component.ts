@@ -1,4 +1,4 @@
-import { Component, inject, computed, signal, ElementRef, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, inject, computed, signal, ElementRef, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TreeStore } from '../../core/state/tree.store';
 import { TreeNode } from '../../core/models/graph.models';
@@ -28,14 +28,16 @@ interface LayoutEdge {
   templateUrl: './tree-canvas.component.html',
   styleUrl: './tree-canvas.component.css'
 })
-export class TreeCanvasComponent {
+export class TreeCanvasComponent implements AfterViewInit, OnDestroy {
   readonly store = inject(TreeStore);
 
   @ViewChild('canvasContainer') canvasContainer!: ElementRef<HTMLDivElement>;
 
   readonly panX = signal<number>(100);
   readonly panY = signal<number>(100);
+  readonly viewportSize = signal({ width: 1600, height: 900 });
   private isPanning = false;
+  private resizeObserver?: ResizeObserver;
   private startX = 0;
   private startY = 0;
 
@@ -118,6 +120,29 @@ export class TreeCanvasComponent {
     return edges;
   });
 
+  /** Keep large stories responsive by mounting only cards near the viewport. */
+  readonly renderedNodes = computed<LayoutNode[]>(() => {
+    const nodes = this.computedNodes();
+    if (nodes.length <= 200) return nodes;
+
+    const zoom = this.store.zoomLevel();
+    const { width, height } = this.viewportSize();
+    const overscan = 500;
+    return nodes.filter(node => {
+      const left = this.panX() + node.x * zoom;
+      const top = this.panY() + node.y * zoom;
+      const right = left + node.width * zoom;
+      const bottom = top + node.height * zoom;
+      return right >= -overscan && bottom >= -overscan && left <= width + overscan && top <= height + overscan;
+    });
+  });
+
+  readonly renderedEdges = computed<LayoutEdge[]>(() => {
+    if (this.computedNodes().length <= 200) return this.computedEdges();
+    const visibleIds = new Set(this.renderedNodes().map(node => node.id));
+    return this.computedEdges().filter(edge => visibleIds.has(edge.source.id) || visibleIds.has(edge.target.id));
+  });
+
   readonly canvasBounds = computed(() => {
     const nodes = this.computedNodes();
     let maxX = 1200;
@@ -128,6 +153,18 @@ export class TreeCanvasComponent {
     });
     return { width: maxX, height: maxY };
   });
+
+  ngAfterViewInit(): void {
+    const element = this.canvasContainer.nativeElement;
+    const updateSize = () => this.viewportSize.set({ width: element.clientWidth, height: element.clientHeight });
+    updateSize();
+    this.resizeObserver = new ResizeObserver(updateSize);
+    this.resizeObserver.observe(element);
+  }
+
+  ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
+  }
 
   onPanStart(event: MouseEvent): void {
     if ((event.target as HTMLElement).closest('.node-card, .canvas-controls')) return;
@@ -191,17 +228,30 @@ export class TreeCanvasComponent {
     this.store.isInspectorOpen.set(true);
   }
 
+  onNodeKeyDown(event: KeyboardEvent, nodeId: string): void {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.store.selectNode(nodeId);
+    this.store.isInspectorOpen.set(true);
+  }
+
   onKeyDown(event: KeyboardEvent): void {
     const active = this.store.selectedNode();
     if (!active) return;
 
     if (event.key === 'ArrowRight') {
-      const children = this.store.activeChildren();
-      if (children.length > 0) {
-        this.store.selectNode(children[0].id);
-      }
-    } else if (event.key === 'ArrowLeft' && active.parentNodeId) {
-      this.store.selectNode(active.parentNodeId);
+      event.preventDefault();
+      this.store.selectPreferredChild(active.id);
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      this.store.selectPreferredParent(active.id);
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.store.selectVerticalNeighbor(active.id, 1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.store.selectVerticalNeighbor(active.id, -1);
     }
   }
 

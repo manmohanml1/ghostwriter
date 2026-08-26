@@ -6,8 +6,8 @@ export const environment: AppEnvironment = {
   version: '0.5.2',
   appTitle: 'Ghostwriter Studio (Staging Preview)',
   supabase: {
-    url: 'https://wuzasgwsyyukhhrwehau.supabase.co',
-    anonKey: 'sb_publishable_6h20KrE1Oya2-AGjFleRFQ_42GdlnDW',
+    url: 'https://yeamtarykhvoaoszzeag.supabase.co',
+    anonKey: 'sb_publishable_ezfF9cgRUG6WzIGJPAmr5w_XcONjsYI',
     authEnabled: true,
     autoSyncIntervalMs: 30000
   },

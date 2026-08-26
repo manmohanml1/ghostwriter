@@ -6,6 +6,11 @@
   />
 
   <main class="main-workspace">
+    @if (store.saveErrorMessage()) {
+      <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-xl rounded-lg border border-red-500 bg-red-950 px-4 py-3 text-sm text-red-100 shadow-xl" role="alert">
+        <strong>Save failed:</strong> {{ store.saveErrorMessage() }}
+      </div>
+    }
     @if (store.activeViewMode() === 'CANVAS') {
       <app-tree-canvas class="canvas-area" />
       <app-node-inspector />
@@ -27,7 +32,7 @@
     <div class="global-modal-backdrop" (click)="showSettingsModal.set(false)">
       <div class="global-modal-box" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h3 class="modal-title">⚙️ AI Multi-Provider & Rate Limit Defense</h3>
+          <h3 class="modal-title">⚙️ AI Models & Failover</h3>
           <button class="btn-modal-close" (click)="showSettingsModal.set(false)">✕</button>
         </div>
 
@@ -45,12 +50,7 @@
               <span class="font-bold text-xs text-slate-200">1. Google AI Studio (Gemini)</span>
               <button class="btn-test-conn" (click)="testProvider('GEMINI')">Test Connection ⚡</button>
             </div>
-            <input 
-              type="password" 
-              [(ngModel)]="geminiKeyInput" 
-              placeholder="AIzaSy... (Gemini API Key)" 
-              class="input-key mb-1.5"
-            />
+            <p class="text-xxs text-emerald-300 mb-1.5">🔒 Credential is managed securely by the server.</p>
             <div class="flex items-center gap-2 mt-1">
               <label class="text-xxs text-slate-400 whitespace-nowrap">Model:</label>
               <select [(ngModel)]="geminiModelInput" class="select-pref text-xs py-1">
@@ -72,12 +72,7 @@
               <span class="font-bold text-xs text-slate-200">2. Groq LPUs (Fast Multi-Model)</span>
               <button class="btn-test-conn" (click)="testProvider('GROQ')">Test Connection ⚡</button>
             </div>
-            <input 
-              type="password" 
-              [(ngModel)]="groqKeyInput" 
-              placeholder="gsk_... (Groq API Key)" 
-              class="input-key mb-1.5"
-            />
+            <p class="text-xxs text-emerald-300 mb-1.5">🔒 Credential is managed securely by the server.</p>
             <div class="flex items-center gap-2 mt-1">
               <label class="text-xxs text-slate-400 whitespace-nowrap">Model:</label>
               <select [(ngModel)]="groqModelInput" class="select-pref text-xs py-1">
@@ -104,14 +99,13 @@
           </div>
 
           <p class="text-xxs text-slate-400 mt-2">
-            All API keys are encrypted strictly in your local browser storage and never transmitted to third-party databases.
+            Provider keys never enter the browser. Signed-in requests pass through Ghostwriter's authenticated server proxy.
           </p>
         </div>
 
         <div class="modal-footer">
-          <button class="btn-secondary" (click)="clearAllKeys()">Clear All Keys</button>
           <button class="btn-primary" [disabled]="isTestingOnSave()" (click)="saveAllSettings()">
-            {{ isTestingOnSave() ? '⏳ Testing & Verifying...' : 'Save Configuration' }}
+            Save Configuration
           </button>
         </div>
       </div>
@@ -155,7 +149,7 @@
               <span>☁️</span> {{ supabase.isAuthenticated() ? 'Account: ' + supabase.currentUser()?.email : 'Connect Supabase Cloud' }}
             </button>
             <button class="drawer-item-btn" (click)="openSettingsModal(); showMobileMenu.set(false)">
-              <span>⚙️</span> Configure AI Keys (Gemini / Groq)
+              <span>⚙️</span> Configure AI Models
             </button>
           </div>
 

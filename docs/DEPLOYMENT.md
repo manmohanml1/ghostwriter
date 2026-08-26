@@ -1,124 +1,91 @@
-# Deployment Guide: Ghostwriter
+# Ghostwriter deployment and promotion
 
-This document records the exact 4-environment matrix, hosting topology, verified live deployments, zero-cost budget, and release promotion contracts for **Ghostwriter**.
+## Environments
 
----
+| Environment | Runtime | Data boundary | Purpose |
+| --- | --- | --- | --- |
+| Development | Local Angular server | Account-scoped IndexedDB; optional configured backend | Focused development and browser testing |
+| Test | GitHub Actions | PostgreSQL 17 compatibility database and test fixtures | App, browser, migration, RLS, conflict, and dependency gates |
+| Staging | Vercel Preview and staging Supabase | Isolated staging users and stories | Authenticated acceptance and migration verification |
+| Production | Vercel and production Supabase | Production users protected by RLS | Public application |
 
-## 1. Verified Live Deployments
+Production application: <https://web-green-beta-4giz07ncu3.vercel.app>
 
-- **Production Web Application**: [https://web-green-beta-4giz07ncu3.vercel.app](https://web-green-beta-4giz07ncu3.vercel.app)
-- **Vercel Project Dashboard**: `https://vercel.com/manmohanlonawat-8572s-projects/web`
-- **Hosting Region**: Washington, D.C., USA (`iad1`)
-- **Deployment Status**: `READY / 200 OK` (Edge CDN active)
+## Current hosting boundary
 
----
+- Vercel serves the Angular application and the authenticated `/api/ai` Function.
+- Supabase provides authentication, PostgreSQL persistence, RPCs, and RLS.
+- Gemini and Groq keys exist only as server-side Vercel environment variables.
+- Local IndexedDB and the deterministic offline generator remain available during provider outages.
+- No Render, Neon, paid queue, worker, or browser-held AI credential belongs to the current system.
 
-## 2. The 4-Environment Matrix
+## Required pull-request gate
 
-Ghostwriter maintains 4 strictly isolated environments with typed configuration schemas:
+`.github/workflows/quality.yml` provides one stable required status, `build-and-test`. It aggregates:
 
-| Environment | Purpose | Hosting / Runtime | Data & Storage Boundary |
-|---|---|---|---|
-| **`dev`** | Local feature development & rapid prototyping | Local Node.js (`http://localhost:4200`) | In-browser `IndexedDB` & mock sessions |
-| **`test`** | Automated CI verification & contract validation | GitHub Actions Ubuntu Runner (`quality.yml`) | Headless mocks & ephemeral fixtures |
-| **`stage`** *(Preview)* | Immutable staging preview for open Pull Requests | Vercel Preview Deployments | Staging Supabase schema / isolated preview data |
-| **`prod`** | Canonical public web studio & reader player | Vercel Production Edge CDN (`iad1`) | Production Supabase PostgreSQL with RLS |
+- Conventional Commit PR-title and topic-branch validation;
+- locked Node 24 installation and contract build;
+- regression, API, and Playwright browser tests;
+- production Angular build and immutable SHA-named artifact;
+- ordered migration application to PostgreSQL 17;
+- authenticated sync, stale-revision, payload-limit, and RLS tests;
+- high/critical production dependency audit.
 
----
+The aggregate status name is intentionally stable because GitHub branch protection depends on it.
 
-## 3. Hosting Architecture & Free-Tier Budget
-
-Ghostwriter is engineered to operate permanently at **$0.00/month** total cost.
-
-| Environment Role | Provider / Tier | Configuration & Limits |
-|---|---|---|
-| **Static Web App** | Vercel Hobby | Edge CDN distribution, automated HTTPS, SPA routing via `vercel.json` |
-| **Database & Auth** | Supabase Free | 500 MB PostgreSQL storage, 50,000 MAU, Row-Level Security (RLS) |
-| **AI Inference** | Client BYOK | Google AI Studio (1,500 req/day) + Groq (Llama 3.3 70B free tier) |
-| **Offline Fallback** | Local Browser | In-memory Dynamic Beat Engine + `IndexedDB` storage |
-
----
-
-## 4. Strict Promotion & Release Contract
+## Promotion contract
 
 ```text
-1. Pull Request Opened on Feature Branch (`feat/...`, `fix/...`, `docs/...`)
-   │
-   ▼
-2. Automated GitHub Actions CI Check (.github/workflows/quality.yml)
-   │ • Conventional Commit PR title verification
-   │ • TypeScript contracts build & Angular production build
-   │ • Upload immutable artifact: `ghostwriter-web-${{ github.sha }}`
-   ▼
-3. Vercel Staging Deployment (Immutable Preview URL Generated on PR)
-   │ • Manual smoke QA of Canvas, AI Failover & E-Reader on Preview URL
-   ▼
-4. STOP & AWAIT OWNER REVIEW: NEVER DEPLOY TO PRODUCTION PRE-MERGE
-   │
-   ▼
-5. Pull Request Merged into `master` (Explicit Owner Approval Required)
-   │
-   ▼
-6. Production Vercel Deployment (Promote Artifact to Canonical Production Domain)
-   │ • Verify live production URL: https://web-green-beta-4giz07ncu3.vercel.app
-   ▼
-7. Explicit Annotated Git Tag & GitHub Release (vMAJOR.MINOR.PATCH)
+topic branch
+  -> pull request
+  -> required quality gate and Vercel Preview
+  -> staging acceptance against the exact commit SHA
+  -> explicit owner merge approval
+  -> merge to protected master
+  -> explicit production migration approval, when needed
+  -> apply forward-only migrations in order
+  -> production schema/RLS/conflict verification
+  -> production deployment of the merged commit
+  -> browser smoke verification
+  -> separately authorized annotated tag and GitHub Release, when desired
 ```
 
-> [!CAUTION]
-> **Zero Pre-Merge Production Deployments**:
-> Production deployment commands (`npx vercel --prod`) are strictly forbidden on unmerged feature branches. Production promotion happens strictly on `master` following merge approval.
+Merging, deploying, completing a milestone, or changing application code does not automatically authorize a tag or GitHub Release.
 
----
+## Database migration rules
 
-## 5. Branch Protection, Rulesets & Pre-Push Guard Architecture
+- Migrations are forward-only and ordered by their 14-digit timestamp.
+- Every migration must pass the local contract validator and PostgreSQL CI job.
+- Apply and verify every migration in staging before production.
+- Production migrations are manual approval-gated actions; they do not run automatically on merge.
+- Prefer expand-and-contract compatibility so old and new application revisions can overlap safely.
+- Recovery uses a new forward migration. Never rewrite an already-applied production migration.
 
-Ghostwriter enforces an automated 3-layer security lockdown ensuring no code enters `master` without full regression verification and pull request review:
+The pending production sequence is:
 
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                   3-LAYER REPOSITORY SECURITY LOCKDOWN                   │
-├──────────────────────────────────────────────────────────────────────────┤
-│ 1. LOCAL GIT PRE-PUSH GUARD (`.git/hooks/pre-push`)                     │
-│    • Intercepts local `git push origin master` commands immediately.     │
-│    • Aborts direct pushes before reaching the network.                   │
-├──────────────────────────────────────────────────────────────────────────┤
-│ 2. GITHUB REPOSITORY RULESET (ID: 21227008 — Active)                    │
-│    • Target: `refs/heads/master` & `refs/heads/main`                     │
-│    • Pull Request Required: Direct pushes hard-rejected (GH006 error).    │
-│    • Bypass Actors: Empty (`current_user_can_bypass: "never"`).          │
-│    • Mandatory Status Checks: `build-and-test` must pass on every PR.    │
-├──────────────────────────────────────────────────────────────────────────┤
-│ 3. CLASSIC BRANCH PROTECTION (`enforce_admins: true`)                    │
-│    • Blocks force pushes (`allow_force_pushes: false`).                  │
-│    • Blocks branch deletion (`allow_deletions: false`).                  │
-│    • Enforces admin compliance unconditionally.                          │
-└──────────────────────────────────────────────────────────────────────────┘
-```
+1. `20260825000000_atomic_story_sync.sql`
+2. `20260825010000_story_revision_conflicts.sql`
+3. `20260825020000_story_payload_limits.sql`
 
-### Pre-Deployment Verification Protocol
-Every commit and deployment must follow this sequence:
-1. **Local Regression Suite**: Run `npm test` locally (13 tests must pass).
-2. **Local Production Build**: Run `npm run build` locally (must exit with code 0).
-3. **Staging Preview**: Deploy feature branch via `npx vercel --yes` for staging smoke testing (required for code/UI changes; skipped for doc-only updates).
-4. **Pull Request**: Open PR targeting `master` on GitHub.
-5. **Merge & Tag**: Merge via GitHub, switch to `master`, pull, tag `vX.Y.Z` (if application code changed), and promote to production via `npx vercel --prod --yes`.
+After applying them, verify RPC privileges, owner isolation, public/anonymous access rules, stale-write rejection, content limits, node/lore triggers, and cleanup of test data.
 
----
+## Releases
 
-## 6. Vercel Deployment Trigger vs. Doc-Only Skip Policy
+Release tags are annotated `vMAJOR.MINOR.PATCH` tags created only after explicit owner instruction. The release workflow rejects lightweight tags, tags outside `master`, version mismatches, failed tests, failed migration validation, and high/critical production advisories.
 
-To prevent wasted build minutes, redundant deployments, and clutter in the Vercel dashboard, deployments are strictly gated by change classification:
+The existing remote `v0.5.3` tag is lightweight and caused its release workflow to fail. Repairing a published tag is a separate approval-gated operation; future tags are protected by the release preflight.
 
-| Change Category | Target Files & Paths | Pull Request Required? | Vercel Deployment Required? | Release Version Bump? |
-|---|---|:---:|:---:|:---:|
-| **App Code / Features / Fixes** | `apps/web/src/**`, `apps/web/package.json` | ✅ **YES** | ✅ **YES** (Preview & Production) | ✅ **YES** (`vX.Y.Z`) |
-| **Documentation / ADRs / Markdown** | `docs/**`, `*.md` | ✅ **YES** | ❌ **NO (Skip)** | ❌ **NO (Skip)** |
-| **CI Workflows / Tooling / Scripts** | `.github/**`, `scripts/**` | ✅ **YES** | ❌ **NO (Skip)** | ❌ **NO (Skip)** |
+## GitHub repository settings
 
-### Governance Rules for Doc-Only Changes:
-1. **Always use a Pull Request**: All documentation and markdown changes must go through a feature branch (`docs/...`) and be merged into `master` via GitHub PR to honor repository rulesets and branch protection.
-2. **Skip Vercel Deployments**: Do NOT invoke `npx vercel` (staging preview or production) when changes are confined entirely to documentation or internal configuration.
-3. **Skip Release Version Bumps**: Documentation PRs do not represent new software builds and do not require version bumps in `package.json` or Git release tags.
+The desired settings are:
 
+- protected `master`, with direct pushes, force pushes, and deletion blocked;
+- administrator enforcement enabled;
+- required status `build-and-test`, strict/up-to-date before merge;
+- required conversation resolution;
+- squash merge as the sole merge strategy and automatic topic-branch deletion;
+- secret scanning and push protection enabled;
+- dependency graph, Dependabot alerts, and Dependabot security updates enabled.
+- CodeQL JavaScript/TypeScript analysis active on pull requests, protected-branch pushes, and its weekly schedule.
 
+Repository settings are live external state and must be verified after any change.
