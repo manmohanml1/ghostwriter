@@ -116,4 +116,40 @@ test.describe('Ghostwriter Studio browser integration', () => {
     await page.locator('.node-card', { hasText: 'Path B: Interrogate the Corporate Archive Vault' }).click();
     await expect(page.locator('#merge-target')).toHaveCount(0);
   });
+
+  test('returns to the remembered branch and supports vertical sibling navigation', async ({ page }) => {
+    await page.evaluate(() => {
+      const now = new Date().toISOString();
+      const node = (id: string, title: string, parentNodeId: string | null, depth: number) => ({
+        id, treeId: 'navigation-story', parentNodeId, title, content: title,
+        authorType: 'HUMAN', status: 'ACTIVE', coherenceScore: null, depth,
+        wordCount: 1, readTimeMinutes: 1, createdAt: now, updatedAt: now
+      });
+      localStorage.setItem('ghostwriter_active_story_v1:anonymous', JSON.stringify({
+        id: 'navigation-story', title: 'Navigation Story', description: '', rootNodeId: 'root',
+        nodes: {
+          root: { ...node('root', 'Root', null, 0), status: 'CANON_PATH' },
+          parent: node('parent', 'Chapter 2', 'root', 1),
+          pathA: node('pathA', 'Path A', 'parent', 2),
+          pathB: node('pathB', 'Path B', 'parent', 2),
+          pathC: node('pathC', 'Path C', 'parent', 2)
+        },
+        edges: [
+          { id: 'root-parent', treeId: 'navigation-story', sourceNodeId: 'root', targetNodeId: 'parent', edgeType: 'BRANCH' },
+          { id: 'parent-a', treeId: 'navigation-story', sourceNodeId: 'parent', targetNodeId: 'pathA', edgeType: 'BRANCH' },
+          { id: 'parent-b', treeId: 'navigation-story', sourceNodeId: 'parent', targetNodeId: 'pathB', edgeType: 'BRANCH' },
+          { id: 'parent-c', treeId: 'navigation-story', sourceNodeId: 'parent', targetNodeId: 'pathC', edgeType: 'BRANCH' }
+        ], loreBible: [], styleConfig: {}, createdAt: now, updatedAt: now, version: 1
+      }));
+    });
+    await page.reload();
+
+    await page.locator('.node-card', { hasText: 'Path C' }).click();
+    await page.locator('.canvas-viewport').press('ArrowLeft');
+    await expect(page.locator('.node-card[aria-pressed="true"]')).toContainText('Chapter 2');
+    await page.locator('.canvas-viewport').press('ArrowRight');
+    await expect(page.locator('.node-card[aria-pressed="true"]')).toContainText('Path C');
+    await page.locator('.canvas-viewport').press('ArrowUp');
+    await expect(page.locator('.node-card[aria-pressed="true"]')).toContainText('Path B');
+  });
 });

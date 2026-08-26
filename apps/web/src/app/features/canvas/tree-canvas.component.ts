@@ -241,13 +241,17 @@ export class TreeCanvasComponent implements AfterViewInit, OnDestroy {
     if (!active) return;
 
     if (event.key === 'ArrowRight') {
-      const children = this.store.activeChildren();
-      if (children.length > 0) {
-        this.store.selectNode(children[0].id);
-      }
+      event.preventDefault();
+      this.store.selectPreferredChild(active.id);
     } else if (event.key === 'ArrowLeft') {
-      const parents = this.store.getParentNodes(active.id);
-      if (parents.length > 0) this.store.selectNode(parents[0].id);
+      event.preventDefault();
+      this.store.selectPreferredParent(active.id);
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.store.selectVerticalNeighbor(active.id, 1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.store.selectVerticalNeighbor(active.id, -1);
     }
   }
 

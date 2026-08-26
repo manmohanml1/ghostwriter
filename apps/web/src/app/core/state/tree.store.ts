@@ -71,6 +71,9 @@ export class TreeStore {
   readonly activeAiSuggestions = signal<AIBranchSuggestion[]>([]);
   readonly previousChapterContent = signal<{ nodeId: string; content: string; title: string } | null>(null);
   readonly saveErrorMessage = signal<string | null>(null);
+  /** Remembers a writer's route through forks without changing the saved story graph. */
+  private readonly preferredChildByParent = signal<Record<string, string>>({});
+  private readonly preferredParentByChild = signal<Record<string, string>>({});
 
   // Reader Settings
   readonly readerTheme = signal<ReaderTheme>(this.loadInitialTheme());
@@ -171,12 +174,69 @@ export class TreeStore {
     });
   }
 
-  selectNode(nodeId: string): void {
-    if (this.currentTree().nodes[nodeId]) {
+  selectNode(nodeId: string, fromNodeId?: string): void {
+    const tree = this.currentTree();
+    if (tree.nodes[nodeId]) {
+      const sourceId = fromNodeId || this.selectedNodeId();
+      const sourceIsParent = sourceId && this.getChildNodes(sourceId, tree).some(child => child.id === nodeId);
+      const primaryParent = tree.nodes[nodeId].parentNodeId;
+
+      if (sourceIsParent) {
+        this.rememberRoute(sourceId, nodeId);
+      } else if (primaryParent) {
+        // Clicking a card directly adopts its deterministic primary route.
+        this.rememberRoute(primaryParent, nodeId);
+      }
       this.selectedNodeId.set(nodeId);
       this.activeAiSuggestions.set([]);
       this.isLoreGenModalOpen.set(false);
     }
+  }
+
+  selectPreferredChild(parentNodeId: string): void {
+    const children = this.getChildNodes(parentNodeId).filter(node => node.status !== 'PRUNED');
+    if (children.length === 0) return;
+    const rememberedId = this.preferredChildByParent()[parentNodeId];
+    const target = children.find(child => child.id === rememberedId) || children[0];
+    this.selectNode(target.id, parentNodeId);
+  }
+
+  selectPreferredParent(childNodeId: string): void {
+    const parents = this.getParentNodes(childNodeId).filter(node => node.status !== 'PRUNED');
+    if (parents.length === 0) return;
+    const rememberedId = this.preferredParentByChild()[childNodeId];
+    const primaryParentId = this.currentTree().nodes[childNodeId]?.parentNodeId;
+    const target = parents.find(parent => parent.id === rememberedId)
+      || parents.find(parent => parent.id === primaryParentId)
+      || parents[0];
+    this.selectNode(target.id);
+  }
+
+  selectVerticalNeighbor(nodeId: string, direction: 1 | -1): void {
+    const tree = this.currentTree();
+    const children = this.getChildNodes(nodeId, tree).filter(node => node.status !== 'PRUNED');
+    if (children.length > 0) {
+      const rememberedId = this.preferredChildByParent()[nodeId];
+      const rememberedIndex = children.findIndex(child => child.id === rememberedId);
+      const target = rememberedIndex >= 0
+        ? children[(rememberedIndex + (direction < 0 ? -1 : 0) + children.length) % children.length]
+        : children[direction > 0 ? 0 : children.length - 1];
+      this.selectNode(target.id, nodeId);
+      return;
+    }
+
+    const parentId = this.preferredParentByChild()[nodeId] || tree.nodes[nodeId]?.parentNodeId;
+    if (!parentId) return;
+    const siblings = this.getChildNodes(parentId, tree).filter(node => node.status !== 'PRUNED');
+    const currentIndex = siblings.findIndex(node => node.id === nodeId);
+    if (currentIndex < 0 || siblings.length < 2) return;
+    const target = siblings[(currentIndex + direction + siblings.length) % siblings.length];
+    this.selectNode(target.id, parentId);
+  }
+
+  private rememberRoute(parentNodeId: string, childNodeId: string): void {
+    this.preferredChildByParent.update(routes => ({ ...routes, [parentNodeId]: childNodeId }));
+    this.preferredParentByChild.update(routes => ({ ...routes, [childNodeId]: parentNodeId }));
   }
 
   setViewMode(mode: ViewMode): void {
