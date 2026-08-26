@@ -11,7 +11,7 @@ All notable changes to **Ghostwriter** are documented in this file in accordance
 - Moved Gemini/Groq traffic behind an authenticated Vercel Function; browser-stored provider keys are removed.
 - Added chapter, node, lore, and browser-payload limits with visible save failures.
 - Added true multi-parent timeline merge edges, cycle prevention, edge-driven traversal, and shared-descendant-safe cleanup.
-- Upgraded Angular 19 to Angular 20; production dependency audit now reports zero advisories.
+- Upgraded Angular 19 to Angular 20 and migrated to the modern `@angular/build` pipeline; the complete production and development dependency graph now reports zero advisories.
 - Added keyboard-operable graph nodes, visible focus states, accessible canvas controls, and large-graph viewport culling.
 - Consolidated duplicate GitHub Actions into one required aggregate gate covering application tests, Playwright, PostgreSQL migration/RLS/conflict verification, production dependency auditing, PR titles, and branch naming.
 - Added Dependabot, CODEOWNERS, CodeQL, contributor/security guidance, annotated-tag release preflight checks, and repository-owned migration validation.
