@@ -17,6 +17,7 @@ All notable changes to **Ghostwriter** are documented in this file in accordance
 - Added Dependabot, CODEOWNERS, CodeQL, contributor/security guidance, annotated-tag release preflight checks, and repository-owned migration validation.
 - Corrected architecture, cost, deployment, AI credential, branch, and release documentation to match the hardened implementation.
 - Removed the stale nested Angular 19 lockfile and unused deprecated Angular browser/animation packages so the monorepo has one authoritative dependency lock.
+- Restricted browser-to-proxy provider routing to exact HTTPS Gemini and Groq hostnames, rejecting credential-bearing, port-qualified, malformed, and lookalike URLs.
 
 ## [0.5.3] - 2026-08-23
 

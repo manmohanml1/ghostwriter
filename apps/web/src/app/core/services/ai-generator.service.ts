@@ -205,13 +205,21 @@ export class AIGeneratorService {
   }
 
   private async providerFetch(url: string, init: RequestInit = {}): Promise<Response> {
-    const provider = url.includes('generativelanguage.googleapis.com') ? 'GEMINI'
-      : url.includes('api.groq.com') ? 'GROQ' : null;
-    if (!provider) return fetch(url, init);
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new Error('AI provider URL is invalid.');
+    }
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.port) {
+      throw new Error('AI provider URL must use direct HTTPS.');
+    }
+    const provider = parsed.hostname === 'generativelanguage.googleapis.com' ? 'GEMINI'
+      : parsed.hostname === 'api.groq.com' ? 'GROQ' : null;
+    if (!provider) throw new Error('AI provider host is not allowed.');
 
     const token = await this.supabase.getAccessToken();
     if (!token) return new Response(JSON.stringify({ error: 'Sign in to use server-managed AI.' }), { status: 401 });
-    const parsed = new URL(url);
     const response = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1665,5 +1673,4 @@ Return strictly a JSON array of entities:
     return `The first chapter of "${title || 'The Journey'}" begins as the immediate conflict of this ${genre.toLowerCase()} tale takes hold under a ${tone.toLowerCase()} atmosphere.`;
   }
 }
-
 
