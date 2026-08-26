@@ -73,7 +73,7 @@ jobs:
           test -f apps/web/dist/web/3rdpartylicenses.txt || (echo "Third-party license inventory missing" && exit 1)
 
       - name: Upload immutable web artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ghostwriter-web-${{ github.sha }}
           path: |
@@ -84,7 +84,7 @@ jobs:
 
       - name: Upload Playwright diagnostics on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-diagnostics-${{ github.sha }}
           path: |
