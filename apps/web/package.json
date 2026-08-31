@@ -15,12 +15,12 @@
     "test:e2e": "npm run test:integration"
   },
   "dependencies": {
-    "@angular/common": "^20.3.29",
+    "@angular/common": "^20.3.30",
     "@angular/compiler": "^20.3.29",
     "@angular/core": "^20.3.29",
-    "@angular/forms": "^20.3.29",
+    "@angular/forms": "^20.3.30",
     "@angular/platform-browser": "^20.3.29",
-    "@angular/router": "^20.3.29",
+    "@angular/router": "^20.3.30",
     "@supabase/supabase-js": "^2.112.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
@@ -29,7 +29,7 @@
   "devDependencies": {
     "@angular/build": "^20.3.35",
     "@angular/cli": "^20.3.35",
-    "@angular/compiler-cli": "^20.3.29",
+    "@angular/compiler-cli": "^20.3.30",
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.0.0",
     "playwright": "^1.62.1",
