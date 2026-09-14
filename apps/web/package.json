@@ -30,8 +30,8 @@
     "@angular/build": "^20.3.35",
     "@angular/cli": "^20.3.35",
     "@angular/compiler-cli": "^20.3.29",
-    "@playwright/test": "^1.62.1",
-    "@types/node": "^22.0.0",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.20.2",
     "playwright": "^1.62.1",
     "typescript": "~5.9.3"
   }
